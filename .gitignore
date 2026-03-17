@@ -5,6 +5,7 @@ __pycache__/
 db.sqlite3
 *.log
 .claude/
+staticfiles/
 *.png
 *.jpg
 !static/icons/*.png
