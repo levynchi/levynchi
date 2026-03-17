@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+db.sqlite3
+*.log
+.claude/
+*.png
+*.jpg
+!static/icons/*.png
+!static/icons/*.jpg

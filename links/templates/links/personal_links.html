@@ -1,0 +1,104 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Levynchi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;500;600;700&family=Heebo:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'css/personal_links.css' %}" />
+</head>
+<body>
+  <main class="page">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-icon"><img src="{% static 'icons/arye-catalog-white.png' %}" alt="Levynchi" /></div>
+      <div class="header-text">
+        <h1 class="logo-name">Levynchi</h1>
+        <p class="tagline">בונים ומעצבים אפליקציות Web, חנויות ואתרים.<br/>קוד נקי שמנועי חיפוש ומודלי AI אוהבים.</p>
+      </div>
+    </header>
+
+    <!-- Projects -->
+    <section class="links-list">
+      {% for project in projects %}
+      {% if project.preview %}
+      <div class="link-card-wrapper">
+        <a href="{{ project.url }}" class="link-card link-card--dark link-card--preview" onclick="togglePreview(event, '{{ project.preview_id }}')">
+          <div class="link-icon link-icon--{{ project.icon }}">
+            <img src="{% static project.icon_img %}" alt="{{ project.name }}" />
+          </div>
+          <div class="link-text">
+            <span class="link-tag">{{ project.tag }}</span>
+            <span class="link-name">{{ project.name }}</span>
+            <span class="link-desc">{{ project.description }}</span>
+          </div>
+        </a>
+        <div class="link-preview" id="{{ project.preview_id }}">
+          <iframe data-src="{% url project.preview %}" title="{{ project.name }}"
+                  sandbox="allow-scripts allow-forms allow-popups allow-same-origin"></iframe>
+        </div>
+      </div>
+      {% else %}
+      <a href="{{ project.url }}" class="link-card">
+        <div class="link-icon link-icon--{{ project.icon }}">
+          <img src="{% static project.icon_img %}" alt="{{ project.name }}" />
+        </div>
+        <div class="link-text">
+          <span class="link-tag">{{ project.tag }}</span>
+          <span class="link-name">{{ project.name }}</span>
+          <span class="link-desc">{{ project.description }}</span>
+        </div>
+      </a>
+      {% endif %}
+      {% endfor %}
+    </section>
+
+    <!-- Why bullets -->
+    <section class="why-section">
+      <div class="why-bullet">
+        <span class="why-star">✦</span>
+        <p><strong>קוד נקי ומהיר</strong> — באותה צורה שאינסטגרם, Pinterest ו-Spotify בנויים. קוד שקל לקדם ואמצעי אבטחה חזקים.</p>
+      </div>
+      <div class="why-bullet">
+        <span class="why-star">✦</span>
+        <p><strong>הקוד שלך לתמיד</strong> — אנחנו בונים, מגישים, ואתה הבעלים. בלי Wix, Shopify ו-WordPress. ללא תלות, ללא חיובים חודשיים לשנים.</p>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+<footer class="footer">Levynchi © 2026</footer>
+    </section>
+
+  </main>
+  <script>
+    window.addEventListener('load', function() {
+      document.querySelectorAll('.link-preview iframe[data-src]').forEach(function(iframe) {
+        iframe.src = window.location.origin + iframe.dataset.src;
+      });
+    });
+
+    function togglePreview(e, id) {
+      e.preventDefault();
+      var preview = document.getElementById(id);
+      var wrapper = preview.closest('.link-card-wrapper');
+      var isOpen = preview.classList.contains('open');
+      preview.classList.toggle('open');
+      wrapper.classList.toggle('wrapper--open', !isOpen);
+      if (!isOpen) {
+        var iframe = preview.querySelector('iframe');
+        if (iframe && !iframe.getAttribute('src')) {
+          iframe.src = window.location.origin + iframe.dataset.src;
+        }
+        setTimeout(function() {
+          window.scrollTo({ top: wrapper.getBoundingClientRect().top + window.pageYOffset, behavior: 'smooth' });
+        }, 420);
+      }
+    }
+  </script>
+</body>
+</html>

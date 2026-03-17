@@ -1,0 +1,263 @@
+@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;500;600;700&family=Heebo:wght@300;400;500;700&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:      #13111C;
+  --card:    #1C1A28;
+  --border:  #414141;
+  --text:    #FFFFFF;
+  --muted:   #888888;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  background: var(--bg);
+  font-family: 'Heebo', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 20px 48px;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0 32px;
+  gap: 16px;
+  text-align: center;
+}
+
+.logo-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid #414141;
+}
+
+.logo-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.logo-name {
+  font-family: 'Josefin Sans', sans-serif;
+  font-weight: 700;
+  font-size: 32px;
+  color: var(--text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tagline {
+  font-family: 'Heebo', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+/* ── Links List ── */
+.links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.link-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  text-decoration: none;
+  color: var(--text);
+  transition: opacity 0.15s ease;
+}
+
+.link-card:hover {
+  opacity: 0.85;
+}
+
+.link-card--dark {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.link-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.link-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.link-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.link-tag {
+  font-family: 'Josefin Sans', sans-serif;
+  font-weight: 500;
+  font-size: 10px;
+  color: var(--text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  align-self: flex-end;
+}
+
+.link-tag::after {
+  content: ' ▽';
+}
+
+.link-name {
+  font-family: 'Heebo', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--text);
+  text-align: right;
+}
+
+.link-desc {
+  font-family: 'Heebo', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Preview Accordion ── */
+.link-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  scroll-margin-top: 0;
+}
+
+.link-card--preview {
+  cursor: pointer;
+}
+
+.wrapper--open .link-card--preview {
+  border-radius: 16px 16px 0 0;
+}
+
+.link-preview {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+  border-radius: 0 0 16px 16px;
+  background: #0d0b17;
+}
+
+.link-preview.open {
+  max-height: 85vh;
+}
+
+.link-preview iframe {
+  width: 100%;
+  height: 85vh;
+  border: none;
+  display: block;
+  border-radius: 0 0 16px 16px;
+}
+
+/* ── Why Bullets ── */
+.why-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 28px;
+  padding: 0 4px;
+}
+
+.why-bullet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.why-star {
+  display: none;
+}
+
+.why-bullet p {
+  font-family: 'Heebo', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.65;
+  text-align: right;
+}
+
+.why-bullet strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.why-bullet strong::before {
+  content: '✦ ';
+}
+
+/* ── Footer ── */
+.footer {
+  font-family: 'Josefin Sans', sans-serif;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text);
+  text-align: center;
+  margin-top: 32px;
+}
+
+.cta-section {
+  margin-top: 0;
+}
+
+/* ── Mobile ── */
+@media (max-width: 400px) {
+  .logo-name { font-size: 26px; }
+  .link-name { font-size: 17px; }
+}
