@@ -145,6 +145,7 @@ body {
   overflow: hidden;
   perspective: 780px;
   transform-style: preserve-3d;
+  background: #ffffff;
 }
 
 .stage--transitioning .view,
@@ -236,23 +237,22 @@ body {
 
 /* ── Home — light theme ── */
 .view--home,
-.view--projects {
-  --bg:     #ffffff;
-  --card:   #f2f2f2;
-  --border: #dedede;
-  --text:   #111111;
-  --muted:  #555555;
+.view--projects,
+.view--about {
+  --bg:        #ffffff;
+  --card:      #f2f2f2;
+  --team-card: #f2f2f2;
+  --border:    #dedede;
+  --text:      #111111;
+  --muted:     #555555;
   background: #ffffff;
   color: #111111;
 }
 
 .view--home .contact-field__input,
-.view--projects .contact-field__input {
+.view--projects .contact-field__input,
+.view--about .contact-field__input {
   background: #f2f2f2;
-}
-
-.view--about {
-  background: var(--about-bg);
 }
 
 .page--about {
@@ -568,6 +568,7 @@ body {
   padding: 18px 22px 24px;
   margin-bottom: 16px;
   background: var(--team-card);
+  border: 1px solid var(--border);
   border-radius: 16px;
   text-align: right;
 }
@@ -601,7 +602,7 @@ body {
 }
 
 .contact-block--about .contact-field__input {
-  background: rgba(26, 32, 53, 0.8);
+  background: #f2f2f2;
 }
 
 /* ── Links List ── */
