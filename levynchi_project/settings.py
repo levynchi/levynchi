@@ -18,7 +18,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-$rn*@yd&98td##@2ug-j7x*8$l%^gfqik_e!vxt#!n*f3_3=^8')
 
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+
+def _env_bool(name: str, default: bool) -> bool:
+    v = os.environ.get(name)
+    if v is None:
+        return default
+    return v.strip().lower() in ('1', 'true', 'yes')
+
+
+# When DEBUG is unset: True (local runserver serves static from STATICFILES_DIRS).
+# Production must set DEBUG=false (or 0) in the environment.
+DEBUG = _env_bool('DEBUG', True)
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
@@ -114,7 +124,16 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Dev: plain storage + WhiteNoise can fall back to finders when STATIC_ROOT is empty.
+# Prod: collectstatic + hashed filenames (Procfile runs collectstatic before gunicorn).
+if DEBUG:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+else:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Serve static from STATICFILES_DIRS without running collectstatic (e.g. local DEBUG=false).
+WHITENOISE_USE_FINDERS = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

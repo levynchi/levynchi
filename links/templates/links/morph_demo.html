@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+{% load static %}
+{% get_static_prefix as STATIC_PREFIX %}
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Levynchi — Morph demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@100..700&family=Heebo:wght@300;400;500;700&display=swap" rel="stylesheet">
+  {# Preload gallery thumbs so morph cards show icons from frame 0 (same assets as CONTENT.gallery) #}
+  <link rel="preload" as="image" href="{% static 'icons/thumb_catalog_white_logo.png' %}">
+  <link rel="preload" as="image" href="{% static 'icons/thumb_webapp.png' %}">
+  <link rel="preload" as="image" href="{% static 'icons/thumb_landing.png' %}">
+  <link rel="preload" as="image" href="{% static 'icons/thumb_ecommerce.png' %}">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+    body {
+      min-height: 100dvh;
+      height: 100%;
+      max-height: 100dvh;
+      background: #0d0b17;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      overflow: hidden;
+      overscroll-behavior: none;
+      font-synthesis: none;
+      -webkit-font-smoothing: antialiased;
+      padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+        max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+      box-sizing: border-box;
+    }
+    #phone {
+      width: calc(100vw - 16px);
+      max-width: 480px;
+      height: min(calc(100dvh - 16px), 920px);
+      max-height: min(100dvh, 920px);
+      background: #13111C;
+      border-radius: 28px; overflow: hidden;
+      border: 1px solid #2a2836;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.7);
+      display: flex; flex-direction: column;
+      clip-path: inset(0 round 28px);
+      isolation: isolate;
+      flex: 1 1 auto;
+    }
+
+    /* ── Navbar ── */
+    #navbar {
+      width: 100%; height: 56px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      direction: ltr; padding: 0 20px;
+      background: #13111C; border-bottom: 1px solid #2a2836;
+      position: relative; z-index: 20;
+    }
+    .logo-wrap { display: flex; align-items: center; gap: 8px; }
+    .logo-icon {
+      width: 32px; height: 32px; flex-shrink: 0;
+      background: url("{% static 'icons/logo_icon.png' %}") center/contain no-repeat;
+    }
+    .logo-text {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 15px; letter-spacing: .08em; color: #fff;
+    }
+    .nav-links { display: flex; align-items: center; gap: 20px; direction: rtl; }
+    .nav-btn {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px; letter-spacing: .04em;
+      color: #AAAAAA; background: none; border: none; cursor: pointer;
+      transition: color .2s;
+    }
+    .nav-btn:hover { color: rgba(255,255,255,.7); }
+    .nav-btn.active { color: #fff; }
+
+    /* ── Stage ── */
+    #stage { position: relative; width: 100%; flex: 1; min-height: 0; overflow: hidden; }
+    #stage.stage--morphing #morph-layer { z-index: 6; }
+    /* Prevent temporary scrollbar/scroll movement during page morph */
+    #stage.stage--morphing #page-gallery.page {
+      overflow-y: hidden;
+    }
+
+    /* ── Pages (frame only — placeholders for card positions) ── */
+    .page {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      overflow: hidden; pointer-events: none;
+    }
+
+    /* Gallery: scrollable page like personal_links .view--active (preview + smooth scroll) */
+    #page-gallery.page {
+      background: #13111C;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      overscroll-behavior: contain;
+    }
+    #page-gallery.page::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+    #page-gallery .fsec--gallery-main {
+      overflow: visible;
+      position: relative;
+      z-index: 2;
+      flex: 0 0 auto !important;
+      min-height: auto !important;
+    }
+    #page-gallery .gallery-placeholders {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 0 0 auto;
+      min-height: 0;
+    }
+    /* ph height must match the rendered live card height, including borders,
+       so morph cards land at exactly the same positions as the live links. */
+    #page-gallery .gallery-placeholders .ph {
+      flex: 0 0 110px;
+    }
+    #page-gallery.gallery-live-active .gallery-placeholders {
+      display: none;
+    }
+    /* Below gallery cards + iframe so preview never shows footer text on top */
+    #page-gallery .fsec--gallery-footer {
+      position: relative;
+      z-index: 0;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+    /* Footer text was painting over the iframe while scrolling — hide when preview open */
+    #page-gallery.gallery-preview-open .fsec--gallery-footer {
+      visibility: hidden;
+      opacity: 0;
+      height: 0 !important;
+      min-height: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    /* frame sections that fade in/out */
+    .fsec { width: 100%; flex-shrink: 0; }
+    .fsec.flex1 { flex: 1; flex-shrink: 1; }
+
+    /* placeholder = invisible card-shaped gap */
+    .ph {
+      flex: 1; flex-basis: 0%; min-height: 0;
+      background: transparent; pointer-events: none;
+    }
+
+    /* ── Morph layer ── */
+    #morph-layer {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .mc {
+      position: absolute; overflow: hidden;
+      will-change: transform, border-radius, width, height, opacity;
+      pointer-events: none;
+      backface-visibility: hidden;
+      transform: translateZ(0);
+    }
+
+    .gallery-live-links {
+      position: absolute;
+      inset: 14px 18px;
+      overflow: visible;
+      z-index: 3;
+      padding-inline-end: 0;
+      pointer-events: auto;
+      isolation: isolate;
+      opacity: 0;
+      visibility: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #page-gallery.gallery-live-active .gallery-live-links {
+      position: static;
+      inset: auto;
+      opacity: 1;
+      visibility: visible;
+      display: flex;
+      gap: 10px;
+    }
+    #page-gallery.gallery-preview-open .gallery-live-links {
+      z-index: 4;
+      background: #13111C;
+    }
+    .gallery-live-links .link-card-wrapper {
+      display: flex;
+      flex-direction: column;
+      scroll-margin-top: 20px;
+      flex: 0 0 auto;
+      min-height: auto;
+    }
+    .gallery-live-links .portfolio-section {
+      margin: 0;
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: auto;
+    }
+    .gallery-live-links .portfolio-section__title {
+      display: none;
+    }
+    .gallery-live-links .links-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 0 0 auto;
+      min-height: auto;
+    }
+    .gallery-live-links .link-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 18px;
+      background: #1C1A28;
+      border: 1px solid #414141;
+      border-radius: 16px;
+      text-decoration: none;
+      color: #fff;
+      flex: 0 0 auto;
+      min-height: 108px;
+      overflow: hidden;
+    }
+    .gallery-live-links .link-card--preview {
+      cursor: pointer;
+    }
+    .gallery-live-links .wrapper--open .link-card--preview {
+      border-radius: 16px 16px 0 0;
+    }
+    .gallery-live-links .link-icon,
+    .mc-gallery-card .link-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .gallery-live-links .link-icon img,
+    .mc-gallery-card .link-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 12px;
+    }
+    .gallery-live-links .link-icon--catalog img,
+    .mc-gallery-card .link-icon--catalog img {
+      object-fit: contain;
+      transform: scale(1);
+    }
+    .gallery-live-links .link-text,
+    .mc-gallery-card .link-text {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+    }
+    .gallery-live-links .link-tag,
+    .mc-gallery-card .link-tag {
+      font-family: 'Josefin Sans', sans-serif;
+      font-weight: 500;
+      font-size: 10px;
+      color: #fff;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      align-self: flex-end;
+      white-space: nowrap;
+    }
+    .gallery-live-links .link-tag::after,
+    .mc-gallery-card .link-tag::after {
+      content: none;
+    }
+    .gallery-live-links .link-name,
+    .mc-gallery-card .link-name {
+      font-family: 'Heebo', sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      line-height: 1.2;
+      text-align: right;
+      color: #fff;
+    }
+    .gallery-live-links .link-desc,
+    .mc-gallery-card .link-desc {
+      font-family: 'Heebo', sans-serif;
+      font-weight: 400;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: right;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .gallery-live-links .link-preview {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius: 0 0 16px 16px;
+      background: #0d0b17;
+    }
+    /* Close to original 85vh, but a bit smaller for mobile */
+    .gallery-live-links .link-preview.open {
+      isolation: isolate;
+      contain: layout;
+      max-height: min(80vh, calc(100dvh - 120px));
+    }
+    .gallery-live-links .link-preview iframe {
+      width: 100%;
+      height: min(80vh, calc(100dvh - 120px));
+      border: none;
+      display: block;
+      border-radius: 0 0 16px 16px;
+      background: #13111c;
+      position: relative;
+      z-index: 1;
+      overscroll-behavior: none;
+    }
+
+    /* ── shared font helpers ── */
+    .jf { font-family: 'Josefin Sans', sans-serif; }
+    .hb { font-family: 'Heebo', sans-serif; }
+
+  </style>
+</head>
+<body>
+<div id="phone">
+
+  <!-- Navbar -->
+  <div id="navbar">
+    <div class="logo-wrap">
+      <div class="logo-icon"></div>
+      <span class="logo-text">LEVYNCHI</span>
+    </div>
+    <div class="nav-links">
+      <button class="nav-btn active" id="btn-home"    onclick="nav('home')">דף הבית</button>
+      <button class="nav-btn"        id="btn-about"   onclick="nav('about')">אודות</button>
+      <button class="nav-btn"        id="btn-gallery" onclick="nav('gallery')">גלריה</button>
+    </div>
+  </div>
+
+  <div id="stage">
+
+    <!-- ══════════════════════════════
+         HOME — frame sections only
+         (service cards are in morph layer)
+    ══════════════════════════════ -->
+    <div class="page" id="page-home">
+
+      <!-- Hero -->
+      <div class="fsec" style="height:310px;background:#13111C;direction:rtl;
+           display:flex;flex-direction:column;align-items:center;justify-content:center;
+           gap:14px;padding:0 24px 24px">
+        <span class="jf" style="color:#fff;font-size:40px;letter-spacing:-.01em;line-height:1">Levynchi</span>
+        <span class="jf" style="color:#fff;font-size:22px;font-weight:700;line-height:1.3;text-align:center">יוצרים הרמוניה<br>בין עיצוב לקוד</span>
+        <span class="jf" style="color:#fff;font-size:13px;line-height:1.7;max-width:280px;text-align:center">בונים ומעצבים אתרי Web, אפליקציות<br>ותכניות מקוונות בקוד נקי ומדויק</span>
+        <div style="background:#00D9C8;border-radius:4px;padding:13px 36px;margin-top:6px;cursor:pointer">
+          <span class="jf" style="color:#13111C;font-size:14px;letter-spacing:.05em">Let's Build It</span>
+        </div>
+      </div>
+
+      <!-- Services frame: label + 3 placeholders -->
+      <div class="fsec" style="background:#13111C;border-top:1px solid #2A2836;
+           direction:rtl;display:flex;flex-direction:column;gap:14px;
+           padding:24px 20px 28px;height:260px;overflow:hidden">
+        <span class="jf" style="color:#AAAAAA;font-size:11px;letter-spacing:.14em;text-transform:uppercase;text-align:right;flex-shrink:0;display:block;max-width:100%;overflow:hidden">השירותים שלנו</span>
+        <!-- row of 3 placeholders -->
+        <div style="display:flex;gap:10px;flex:1">
+          <div class="ph"></div>
+          <div class="ph"></div>
+          <div class="ph"></div>
+        </div>
+      </div>
+
+      <!-- Quote -->
+      <div class="fsec flex1" style="background:#13111C;border-top:1px solid #2A2836;
+           display:flex;align-items:center;justify-content:center;
+           direction:rtl;padding:20px 28px">
+        <span class="jf" style="color:#00D9C8;font-size:11.5px;line-height:1.85;text-align:center">
+          "אנחנו לא רק בונים אתר, אנחנו בונים נכס דיגיטלי.<br>
+          הקוד שלנו נקי, מהיר ומאובטח -<br>
+          בדיוק כמו שהמערכות הגדולות בעולם בנויות.<br>
+          זה קוד שמנועי חיפוש אוהבים לסרוק ומודלים AI יודעים לקרוא בקלות."
+        </span>
+      </div>
+
+    </div><!-- /page-home -->
+
+
+    <!-- ══════════════════════════════
+         ABOUT — frame sections only
+         (team cards are in morph layer)
+    ══════════════════════════════ -->
+    <div class="page" id="page-about" style="opacity:0">
+
+      <!-- About Hero -->
+      <div class="fsec" style="border-bottom:1px solid #2A2836;direction:rtl;
+           display:flex;flex-direction:column;align-items:center;gap:14px;
+           padding:28px 24px 24px">
+        <span class="jf" style="color:#fff;font-size:40px;letter-spacing:-.01em;line-height:1;text-align:center">About Us</span>
+        <span class="jf" style="color:#00FCFA;font-size:16px;font-weight:300;line-height:22px;max-width:320px;text-align:center">
+          אנחנו מאמינים שאתר הוא נכס דיגיטלי שצריך להיות כלעסקות המלאה.
+          אנחנו בונים קוד נקי, ללא תלות בפלטפורמות סגורות,
+          שמוכן לצמיחה שלכם ולעידן ה-AI.
+        </span>
+      </div>
+
+      <!-- 2 placeholders for team cards -->
+      <div class="fsec flex1" style="direction:rtl;display:flex;flex-direction:column;gap:12px;padding:16px 20px">
+        <div class="ph"></div>
+        <div class="ph"></div>
+      </div>
+
+      <!-- Footer -->
+      <div class="fsec" style="border-top:1px solid #2A2836;direction:rtl;
+           display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 24px">
+        <span class="hb" style="color:rgba(255,255,255,.55);font-size:13px;text-align:center">הקישון 6 תל אביב</span>
+        <span class="hb" style="color:rgba(255,255,255,.55);font-size:13px;text-align:center">052-8086466</span>
+        <span class="hb" style="color:rgba(255,255,255,.55);font-size:13px;text-align:center">Levynchi@gmail.com</span>
+      </div>
+
+    </div><!-- /page-about -->
+
+
+    <!-- ══════════════════════════════
+         GALLERY — frame sections only
+         (project cards are in morph layer)
+    ══════════════════════════════ -->
+    <div class="page" id="page-gallery" style="opacity:0">
+
+      <!-- Page Title -->
+      <div class="fsec" style="border-bottom:1px solid #2A2836;direction:rtl;
+           display:flex;flex-direction:column;align-items:center;padding:16px 20px 14px">
+        <span class="jf" style="color:#fff;font-size:32px;letter-spacing:-.01em;line-height:40px">הפרויקטים שלנו</span>
+        <span class="hb" style="color:#fff;font-size:13px;line-height:1.7;text-align:center">בונים ומעצבים אפליקציות WEB, חנויות ואתרים.<br>קוד נקי שמנועי חיפוש ומודלי AI אוהבים.</span>
+      </div>
+
+      <!-- 4 placeholders for project cards (flex: fills space — no inner scroll) -->
+      <div class="fsec fsec--gallery-main" style="flex:1;min-height:0;direction:rtl;display:flex;flex-direction:column;gap:10px;padding:14px 18px;position:relative">
+        <div class="gallery-placeholders">
+          <div class="ph"></div>
+          <div class="ph"></div>
+          <div class="ph"></div>
+          <div class="ph"></div>
+        </div>
+        <div class="gallery-live-links">
+          {% include 'links/_portfolio_section.html' with section_id='morph-gallery-portfolio' heading_id='morph-gallery-heading' section_title='הפרויקטים שלנו' preview_id_prefix='morph-' %}
+        </div>
+      </div>
+
+      <!-- Why + Footer -->
+      <div class="fsec fsec--gallery-footer" style="flex-shrink:0;border-top:1px solid #2A2836;direction:rtl;
+           display:flex;flex-direction:column;gap:12px;padding:12px 22px 20px">
+        <div style="direction:rtl;display:flex;flex-direction:column;gap:3px">
+          <span class="hb" style="color:#fff;font-size:13px;line-height:1.7;text-align:right">✦ קוד נקי ומהיר</span>
+          <span class="hb" style="color:#AAAAAA;font-size:12px;line-height:1.6;text-align:right">באותה צורה שאינסטגרם, Pinterest בנויים. קוד שקל לקדם ואמצעי אבטחה חזקים.</span>
+        </div>
+        <div style="direction:rtl;display:flex;flex-direction:column;gap:3px">
+          <span class="hb" style="color:#fff;font-size:13px;line-height:1.7;text-align:right">✦ הקוד שלך לתמיד</span>
+          <span class="hb" style="color:#AAAAAA;font-size:12px;line-height:1.6;text-align:right">אנחנו בונים, מגישים, ואתה הבעלים. ללא תלות, ללא Wix, Shopify ו-WordPress.</span>
+        </div>
+        <div style="display:flex;justify-content:center;margin-top:auto;padding-top:4px">
+          <span class="jf" style="color:#fff;font-size:11px;letter-spacing:.04em">Levynchi © 2026</span>
+        </div>
+      </div>
+
+    </div><!-- /page-gallery -->
+
+    <!-- GPU texture pre-warm: forces browser to decode+upload icons before first swap -->
+    <div style="position:absolute;width:1px;height:1px;overflow:hidden;opacity:0.001;pointer-events:none" aria-hidden="true">
+      <img src="{% static 'icons/thumb_catalog_white_logo.png' %}"   width="1" height="1" alt="" decoding="sync">
+      <img src="{% static 'icons/thumb_webapp.png' %}"    width="1" height="1" alt="" decoding="sync">
+      <img src="{% static 'icons/thumb_landing.png' %}"   width="1" height="1" alt="" decoding="sync">
+      <img src="{% static 'icons/thumb_ecommerce.png' %}" width="1" height="1" alt="" decoding="sync">
+    </div>
+
+    <!-- ══════════════════════════════
+         MORPH LAYER — 4 cards
+    ══════════════════════════════ -->
+    <div id="morph-layer">
+      <div class="mc" id="mc0"></div>
+      <div class="mc" id="mc1"></div>
+      <div class="mc" id="mc2"></div>
+      <div class="mc" id="mc3" style="opacity:0"></div>
+    </div>
+
+  </div><!-- /stage -->
+</div><!-- /phone -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script>
+var ICON_BASE = '{{ STATIC_PREFIX }}icons/';
+['thumb_catalog_white_logo.png', 'thumb_webapp.png', 'thumb_landing.png', 'thumb_ecommerce.png'].forEach(function (f) {
+  var im = new Image();
+  im.src = ICON_BASE + f;
+});
+// ──────────────────────────────────────────
+//  CARD CONTENT
+// ──────────────────────────────────────────
+function galleryCard(tag, title, desc, thumb, imgStyle, frameStyle, titleStyle) {
+  return `<div class="mc-gallery-card" style="width:100%;height:100%;display:flex;align-items:center;
+    gap:14px;padding:18px 18px;direction:rtl;box-sizing:border-box">
+    <div class="link-icon" style="width:72px;height:72px;flex-shrink:0;border-radius:12px;overflow:hidden;background:#1C1A28;${frameStyle || ''}">
+      <img src="${ICON_BASE}${thumb}" alt="" width="72" height="72" loading="eager" decoding="sync"
+        style="width:100%;height:100%;object-fit:cover;display:block;border-radius:12px;${imgStyle || ''}" />
+    </div>
+    <div class="link-text" style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;direction:rtl">
+      <span class="link-tag">${tag}</span>
+      <span class="link-name" style="${titleStyle || ''}">${title}</span>
+      <span class="link-desc">${desc}</span>
+    </div>
+  </div>`;
+}
+
+function aboutCard(glyph, name, role, bio) {
+  return `<div style="width:100%;height:100%;display:flex;flex-direction:column;
+    align-items:flex-start;gap:6px;padding:18px 16px;direction:rtl;box-sizing:border-box">
+    <span style="font-family:'Josefin Sans',sans-serif;color:#00D9C8;font-size:26px;line-height:1">${glyph}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#fff;font-size:20px;line-height:1.2">${name}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#00D9C8;font-size:13px">${role}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#fff;font-size:12px;
+      line-height:1.7;margin-top:4px;text-align:right">${bio}</span>
+  </div>`;
+}
+
+function homeCard(glyph, title, tag, desc) {
+  return `<div style="width:100%;height:100%;display:flex;flex-direction:column;
+    align-items:flex-start;gap:5px;padding:12px;direction:rtl;box-sizing:border-box">
+    <span style="font-family:'Josefin Sans',sans-serif;color:#00D9C8;font-size:24px;line-height:1">${glyph}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#fff;font-size:13px;
+      line-height:1.3;text-align:right;width:100%">${title}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#00D9C8;font-size:11px;
+      text-align:right;width:100%">${tag}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#888;font-size:11px;
+      line-height:1.6;text-align:right;width:100%">${desc}</span>
+  </div>`;
+}
+
+const CONTENT = {
+  /* Must match links/views.py PROJECTS order — same as .ph placeholders + _portfolio_section.html */
+  gallery: [
+    galleryCard('CATALOG',     'קטלוג בגדי תינוקות',         'גלריית מוצרים עם סינון לפי גיל וגודל',       'thumb_catalog_white_logo.png', 'object-fit:contain;filter:brightness(0) invert(1);', ''),
+    galleryCard('WEB APP',     'אפליקציית ניהול תורים',      'קביעת תורים אונליין — ללא הורדת אפליקציה',   'thumb_webapp.png'),
+    galleryCard('LANDING PAGE','סדנאות גיל המעבר',           'דף נחיתה לסדנאות לנשים — רישום וקביעת מקום', 'thumb_landing.png'),
+    galleryCard('E-COMMERCE',  'אריה בוטיק',                 'חנות אונליין לבוטיק אופנה — קטלוג מוצרים, עגלת קניות ותשלום', 'thumb_ecommerce.png'),
+  ],
+  about: [
+    aboutCard('&lt;\\&gt;', 'ליאור לוי', 'Tech & Automation',
+      'בניית ארכיטקטורת קוד, אוטומציות ותהליכים עסקיים, Custom Code המותאמים אישית לצרכי העסק.'),
+    aboutCard('✳', 'הדר לוי', 'Design & Vision',
+      'אפיון ועיצוב ממשקים (UI/UX) תוך הפיכת רעיונות מורכבים למערכות נקיות ופשוטות לשימוש.'),
+    null,
+    null,
+  ],
+  home: [
+    homeCard('✳',      'עיצוב ואפיון', '(UI/UX)',        'ממשקים אינטואיטיביים שמתמקדים בחוויית המשתמש'),
+    homeCard('#',      'התאמה טכנולוגית', 'ואוטומציות',  'קוד חכם שחוסך זמן ומשאבים לעסק שלך'),
+    homeCard('&lt;/&gt;', 'פיתוח', 'Custom Code',        'בניית אתרים מאפס בטכנולוגיות המתקדמות ביותר'),
+    null,
+  ],
+};
+
+const STYLE = {
+  gallery: { bg: '#1C1A28', border: '1px solid #414141',  r: '16px' },
+  about:   { bg: '#1A2035', border: '1px solid #2A2836',  r: '14px' },
+  home:    { bg: '#1C1A28', border: '1px solid #2A2836',  r: '12px' },
+};
+
+// ──────────────────────────────────────────
+//  GET PLACEHOLDER RECTS (stage-relative, unscaled)
+// ──────────────────────────────────────────
+function getScale() {
+  const m = new DOMMatrix(window.getComputedStyle(document.getElementById('phone')).transform);
+  return m.a || 1;
+}
+
+function getRects(pageId) {
+  const stage = document.getElementById('stage');
+  const sr    = stage.getBoundingClientRect();
+  const s     = getScale();
+  return Array.from(document.querySelectorAll(`#page-${pageId} .ph`))
+    .map(ph => {
+      const r = ph.getBoundingClientRect();
+      return {
+        // Preserve sub-pixel precision so the morph layer lands exactly where
+        // the live gallery cards render, avoiding 1px-looking handoff jumps.
+        x: +(((r.left - sr.left) / s).toFixed(3)),
+        y: +(((r.top - sr.top) / s).toFixed(3)),
+        w: +((r.width / s).toFixed(3)),
+        h: +((r.height / s).toFixed(3)),
+      };
+    });
+}
+
+// ──────────────────────────────────────────
+//  INIT — place morph cards at home positions
+// ──────────────────────────────────────────
+const CARDS = [
+  document.getElementById('mc0'),
+  document.getElementById('mc1'),
+  document.getElementById('mc2'),
+  document.getElementById('mc3'),
+];
+
+let current = 'home';
+let busy    = false;
+let galleryPreviewScrollTimer = null;
+
+/** Unified motion — morph + section fades feel like one system */
+var MORPH = {
+  easeSectionOut: 'power3.in',
+  easeSectionIn: 'power3.out',
+  easeMorph: 'power3.inOut',
+  easeShrink: 'power3.in',
+  durSectionOut: 0.3,
+  durMorph: 0.72,
+  durSectionIn: 0.45,
+  staggerOut: 0.05,
+  staggerIn: 0.06,
+  swapAt: 0.5,
+  swapFadeOut: 0.1,
+  swapFadeIn: 0.16,
+  toPageRevealAt: 0.26,
+  toSecsStartAt: 0.32,
+  aboutToGallery: {
+    splitStart: 0.1,
+    splitEnd: 0.36,
+    travelEnd: 0.82,
+    hideFromPageAt: 0.34,
+    toPageRevealAt: 0.34,
+    toSecsStartAt: 0.72,
+    spawnScaleStart: 0.82
+  }
+};
+
+/**
+ * Export-friendly bridge between AE layer naming and morph-demo DOM targets.
+ * This object is intentionally simple so it can be serialized for JS handoff.
+ */
+var MORPH_AE_HANDOFF = {
+  version: '1.0.0',
+  comps: {
+    gallery_to_about: 'tr_gallery_to_about',
+    about_to_gallery: 'tr_about_to_gallery'
+  },
+  selectors: {
+    nav_root: '#navbar',
+    frame_shell: '#phone',
+    stage_root: '#stage',
+    morph_layer: '#morph-layer',
+    gallery_cards: '#morph-layer #mc0, #morph-layer #mc1, #morph-layer #mc2, #morph-layer #mc3',
+    gallery_live_links: '#page-gallery .gallery-live-links',
+    about_hero: '#page-about .fsec:first-child',
+    about_cards_zone: '#page-about .fsec.flex1',
+    about_contact: '#page-about .fsec:last-child',
+    gallery_title: '#page-gallery .fsec:first-child',
+    gallery_cards_zone: '#page-gallery .fsec--gallery-main',
+    gallery_footer: '#page-gallery .fsec--gallery-footer'
+  },
+  layerMap: [
+    { layer: 'nav_root', selector: '#navbar' },
+    { layer: 'frame_shell', selector: '#phone' },
+    { layer: 'galleryCard_01', selector: '#mc0' },
+    { layer: 'galleryCard_02', selector: '#mc1' },
+    { layer: 'galleryCard_03', selector: '#mc2' },
+    { layer: 'galleryCard_04', selector: '#mc3' },
+    { layer: 'aboutHero_block', selector: '#page-about .fsec:first-child' },
+    { layer: 'aboutCards_block', selector: '#page-about .fsec.flex1' },
+    { layer: 'contact_block', selector: '#page-about .fsec:last-child' },
+    { layer: 'galleryLiveLinks_block', selector: '#page-gallery .gallery-live-links' }
+  ],
+  markers: ['navLock', 'cardsLift', 'contentSwap', 'aboutSettle'],
+  notes: 'Use with DOM/CSS/JS implementation; AE comp is reference timing source.'
+};
+
+function buildMorphHandoffSnapshot(fromId, target, timelineDurationSec) {
+  var direction = fromId + '_to_' + target;
+  var isGalleryAbout = (fromId === 'gallery' && target === 'about') || (fromId === 'about' && target === 'gallery');
+  if (!isGalleryAbout) return null;
+  return {
+    generatedAt: new Date().toISOString(),
+    direction: direction,
+    compName: MORPH_AE_HANDOFF.comps[direction] || '',
+    timingsMs: {
+      sectionOutStart: 0,
+      sectionOutEnd: Math.round(MORPH.durSectionOut * 1000),
+      cardsMorphStart: 0,
+      cardsMorphEnd: Math.round((MORPH.durMorph + 3 * MORPH.staggerOut) * 1000),
+      toPageRevealAt: Math.round(MORPH.toPageRevealAt * 1000),
+      toSectionsStartAt: Math.round(MORPH.toSecsStartAt * 1000),
+      timelineDuration: Math.round((timelineDurationSec || 0) * 1000)
+    },
+    easing: {
+      sectionOut: MORPH.easeSectionOut,
+      morph: MORPH.easeMorph,
+      sectionIn: MORPH.easeSectionIn,
+      shrink: MORPH.easeShrink
+    },
+    selectors: MORPH_AE_HANDOFF.selectors,
+    layerMap: MORPH_AE_HANDOFF.layerMap
+  };
+}
+
+window.__MORPH_AE_HANDOFF = MORPH_AE_HANDOFF;
+window.buildMorphHandoffSnapshot = buildMorphHandoffSnapshot;
+
+window.__MORPH_DEBUG_ENABLED = false;
+
+function setActivePageStack(active) {
+  var order = { home: 'page-home', about: 'page-about', gallery: 'page-gallery' };
+  var activeId = order[active];
+  document.querySelectorAll('#stage .page').forEach(function (p) {
+    var on = p.id === activeId;
+    p.style.pointerEvents = on ? 'auto' : 'none';
+    p.style.zIndex = on ? (active === 'gallery' ? '8' : '1') : '0';
+    p.style.visibility = on ? 'visible' : 'hidden';
+    p.setAttribute('aria-hidden', on ? 'false' : 'true');
+  });
+}
+
+function toggleGalleryLiveLinks(show) {
+  const live = document.querySelector('.gallery-live-links');
+  const galleryPage = document.getElementById('page-gallery');
+  if (!live) return;
+  if (show) {
+    if (galleryPage) galleryPage.classList.add('gallery-live-active');
+    gsap.set(live, { display: 'flex', autoAlpha: 1, pointerEvents: 'auto' });
+    if (typeof CARDS !== 'undefined') {
+      CARDS.forEach(function (card) { gsap.set(card, { opacity: 0 }); });
+    }
+  } else {
+    if (galleryPage) galleryPage.classList.remove('gallery-live-active');
+    gsap.set(live, { autoAlpha: 0, pointerEvents: 'none', display: 'none' });
+  }
+}
+
+function placeCards(pageId) {
+  const rects = getRects(pageId);
+  const sty   = STYLE[pageId];
+  CARDS.forEach((card, i) => {
+    const r = rects[i];
+    const c = CONTENT[pageId][i];
+    if (r && c) {
+      gsap.set(card, { left: r.x, top: r.y, width: r.w, height: r.h,
+        borderRadius: sty.r, backgroundColor: sty.bg, opacity: 1, scale: 1, autoRound: false });
+      card.style.outline = 'none';
+      card.style.border = sty.border;
+      card.innerHTML = c;
+    } else {
+      gsap.set(card, { opacity: 0, scale: 0 });
+      card.innerHTML = '';
+    }
+  });
+}
+
+// Wait for fonts/layout then init
+window.addEventListener('load', () => {
+  // Temporarily show all pages for measurement
+  document.querySelectorAll('.page').forEach(p => { p.style.visibility = 'hidden'; p.style.opacity = '1'; });
+  requestAnimationFrame(() => {
+    placeCards('home');
+    // Restore visibility
+    document.querySelectorAll('.page').forEach(p => { p.style.visibility = ''; });
+    document.getElementById('page-home').style.opacity  = '1';
+    document.getElementById('page-about').style.opacity = '0';
+    document.getElementById('page-gallery').style.opacity = '0';
+    toggleGalleryLiveLinks(false);
+    setActivePageStack('home');
+  });
+});
+
+// ──────────────────────────────────────────
+//  NAV — morph transition
+// ──────────────────────────────────────────
+function setNavActive(page) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + page).classList.add('active');
+}
+
+function nav(target) {
+  if (target === current || busy) return;
+  busy = true;
+  setNavActive(target);
+  if (galleryPreviewScrollTimer) {
+    clearTimeout(galleryPreviewScrollTimer);
+    galleryPreviewScrollTimer = null;
+  }
+
+  // Pre-decode target images so they paint synchronously when injected at swapAt
+  (CONTENT[target] || []).forEach(function(html) {
+    if (!html) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    tmp.querySelectorAll('img').forEach(function(img) {
+      if (img.decode) img.decode().catch(function(){});
+    });
+  });
+
+  const stage = document.getElementById('stage');
+  if (stage) stage.classList.add('stage--morphing');
+
+  const fromId   = current;
+  const fromPage = document.getElementById('page-' + fromId);
+  const toPage   = document.getElementById('page-' + target);
+  const isAboutToGallery = fromId === 'about' && target === 'gallery';
+  const A2G = MORPH.aboutToGallery || {};
+  const fromPageHideAt = isAboutToGallery ? A2G.hideFromPageAt : MORPH.toPageRevealAt;
+  const toPageRevealAt = isAboutToGallery ? A2G.toPageRevealAt : MORPH.toPageRevealAt;
+  const toSecsStartAt = isAboutToGallery ? A2G.toSecsStartAt : MORPH.toSecsStartAt;
+
+  // Temporarily show target page (invisible) so we can measure
+  gsap.set(toPage, { opacity: 0, visibility: 'visible' });
+
+  const fromSecs = Array.from(fromPage.querySelectorAll('.fsec'));
+  const allToSecs = Array.from(toPage.querySelectorAll('.fsec'));
+  const galleryFooter = target === 'gallery' ? toPage.querySelector('.fsec--gallery-footer') : null;
+  const galleryTitle = target === 'gallery' ? toPage.querySelector('.fsec:first-child') : null;
+  const baseToSecs = allToSecs;
+  const toSecs = (isAboutToGallery && galleryTitle)
+    ? baseToSecs.filter(el => el !== galleryTitle)
+    : baseToSecs;
+  const live = document.querySelector('.gallery-live-links');
+
+  // Disable CSS transitions on toSecs during GSAP animation to prevent conflict
+  baseToSecs.forEach(el => el.style.transition = 'none');
+  // Reset any leftover y-offset from a previous fade-out before measuring placeholder positions.
+  // Without this, getRects() reads stale y:-14 transforms and cards animate to wrong positions.
+  gsap.set(baseToSecs, { y: 0 });
+
+  const fromRects = getRects(fromId);
+  const toRects = getRects(target);
+  const toSty   = STYLE[target];
+
+  // Hide target sections — they'll stagger in later
+  gsap.set(toSecs, { opacity: 0, y: 18 });
+  if (isAboutToGallery && galleryTitle) {
+    gsap.set(galleryTitle, { opacity: 1, y: 0 });
+  }
+  if (target === 'gallery' && live) {
+    gsap.set(live, { display: 'flex', autoAlpha: 0, pointerEvents: 'none' });
+  }
+
+  const tl = gsap.timeline({
+    onComplete() {
+      // ── DEBUG: track first card top position through each onComplete step ──
+      var _dbgCard = document.querySelector('#page-gallery .gallery-live-links .link-card');
+      var _dbgY = function(label) {
+        if (!_dbgCard) return;
+        var r = _dbgCard.getBoundingClientRect();
+        console.log('[DBG onComplete] ' + label + ' → top=' + r.top.toFixed(1) + ' left=' + r.left.toFixed(1) + ' w=' + r.width.toFixed(1));
+      };
+      _dbgY('START');
+
+      toSecs.forEach(el => el.style.transition = '');
+      _dbgY('after transition restore');
+
+      gsap.set(fromPage, { opacity: 0 });
+      _dbgY('after gsap.set fromPage');
+
+      current = target;
+      busy    = false;
+      if (stage) stage.classList.remove('stage--morphing');
+      _dbgY('after remove stage--morphing');
+
+      if (target !== 'gallery') {
+        toggleGalleryLiveLinks(false);
+      }
+      _dbgY('after toggleGalleryLiveLinks');
+
+      if (target !== 'gallery') {
+        placeCards(target);
+      }
+      setActivePageStack(target);
+      _dbgY('after setActivePageStack');
+
+      if (target !== 'gallery') {
+        var gpg = document.getElementById('page-gallery');
+        if (gpg) {
+          gpg.classList.remove('gallery-preview-open');
+          gpg.scrollTop = 0;
+        }
+      } else {
+        var galleryPage = document.getElementById('page-gallery');
+        if (galleryPage) galleryPage.scrollTop = 0;
+        _dbgY('after scrollTop=0');
+      }
+      try { window.scrollTo(0, 0); } catch (e) {}
+      _dbgY('END');
+
+      var handoff = buildMorphHandoffSnapshot(fromId, target, tl.duration());
+      if (handoff) { window.__MORPH_LAST_HANDOFF = handoff; }
+    }
+  });
+
+  // 1) Fade-out current page frame sections (staggered)
+  tl.to(fromSecs, {
+    opacity: 0, y: -14,
+    stagger: MORPH.staggerOut, duration: MORPH.durSectionOut, ease: MORPH.easeSectionOut
+  }, 0);
+  // Hide the whole source page once its frame is gone (prevents ghosting during overlap).
+  tl.to(fromPage, { opacity: 0, duration: 0.01 }, fromPageHideAt);
+
+  // 2) Morph each card to its target position
+  CARDS.forEach((card, i) => {
+    const tr  = toRects[i];
+    const tc  = CONTENT[target][i];
+    const stagger = i * MORPH.staggerOut;
+    const swapAt = (fromId === 'about' && target === 'gallery' && i === 0) ? 0.98 : MORPH.swapAt;
+
+    if (!tr || !tc) {
+      // Card doesn't exist in target → shrink and fade
+      tl.to(card, { opacity: 0, scale: 0.7, duration: 0.28, ease: MORPH.easeShrink }, stagger);
+    } else if (isAboutToGallery) {
+      const origin = fromRects[i < 2 ? i : 1] || tr;
+      const splitRect = {
+        // Keep the split pose close to the final gallery card size so A2G
+        // doesn't feel like cards briefly "balloon" before settling.
+        x: Math.round(tr.x + (i % 2 === 0 ? -14 : 14)),
+        y: Math.round(tr.y + (i < 2 ? -12 : 12)),
+        w: Math.round(tr.w + 8),
+        h: Math.round(tr.h + 10)
+      };
+      if (i >= 2) {
+        gsap.set(card, {
+          left: origin.x,
+          top: origin.y,
+          width: origin.w,
+          height: origin.h,
+          borderRadius: toSty.r,
+          backgroundColor: toSty.bg,
+          opacity: 0,
+          scale: A2G.spawnScaleStart || 0.82,
+          autoRound: false
+        });
+        card.style.outline = 'none';
+        card.style.border = toSty.border;
+        card.innerHTML = tc;
+      }
+      if (i < 2) {
+        let swappedEarly = false;
+        tl.to(card, {
+          left: splitRect.x, top: splitRect.y, width: splitRect.w, height: splitRect.h,
+          borderRadius: toSty.r, backgroundColor: toSty.bg,
+          opacity: 1, scale: 1, autoRound: false,
+          duration: Math.max(0.12, (A2G.splitEnd || 0.36) - (A2G.splitStart || 0.1)),
+          ease: MORPH.easeMorph,
+          onUpdate() {
+            if (!swappedEarly && this.progress() > 0.36) {
+              swappedEarly = true;
+              card.style.outline = 'none';
+              card.style.border = toSty.border;
+              card.innerHTML = tc;
+            }
+          }
+        }, A2G.splitStart || 0.1);
+      } else {
+        tl.to(card, {
+          left: splitRect.x, top: splitRect.y, width: splitRect.w, height: splitRect.h,
+          borderRadius: toSty.r, backgroundColor: toSty.bg,
+          opacity: 1, scale: 1, autoRound: false,
+          duration: Math.max(0.12, (A2G.splitEnd || 0.36) - (A2G.splitStart || 0.1)),
+          ease: MORPH.easeMorph
+        }, A2G.splitStart || 0.1);
+      }
+      tl.to(card, {
+        left: tr.x, top: tr.y, width: tr.w, height: tr.h,
+        borderRadius: toSty.r, backgroundColor: toSty.bg,
+        opacity: 1, scale: 1, autoRound: false,
+        duration: Math.max(0.2, (A2G.travelEnd || 0.82) - (A2G.splitEnd || 0.36)),
+        ease: MORPH.easeMorph
+      }, A2G.splitEnd || 0.36);
+    } else {
+      let swapped = false;
+      tl.to(card, {
+        left: tr.x, top: tr.y, width: tr.w, height: tr.h,
+        borderRadius: toSty.r, backgroundColor: toSty.bg,
+        opacity: 1, scale: 1, autoRound: false,
+        duration: MORPH.durMorph, ease: MORPH.easeMorph,
+        onUpdate() {
+          if (!swapped && this.progress() > swapAt) {
+            swapped = true;
+            // Swap content without opacity fade to avoid transient double-render "ghosting".
+            card.style.outline = 'none';
+            card.style.border = toSty.border;
+            card.innerHTML = tc;
+          }
+        }
+      }, stagger);
+    }
+  });
+
+  // 3) Show target page background + fade in sections
+  tl.to(toPage, { opacity: 1, duration: 0.01 }, toPageRevealAt);
+  tl.to(toSecs, {
+    opacity: 1, y: 0,
+    stagger: MORPH.staggerIn, duration: MORPH.durSectionIn, ease: MORPH.easeSectionIn
+  }, toSecsStartAt);
+
+  // Hand-off to real gallery list — wait for all cards to land before swapping.
+  if (target === 'gallery' && live) {
+    // Last card finishes morphing at: (CARDS.length-1)*staggerOut + durMorph
+    const lastCardEnd = (CARDS.length - 1) * MORPH.staggerOut + MORPH.durMorph;
+    // For about→gallery: delay handoff until fsec--gallery-main (index 1) finishes its y-animation.
+    // fsec[1] starts at toSecsStartAt + 1*staggerIn and ends +durSectionIn later.
+    // Live links must not appear while their parent fsec is still translating (causes unwanted slide).
+    const galleryMainSettleAt = toSecsStartAt + MORPH.staggerIn + MORPH.durSectionIn;
+    const handoffAt = target === 'gallery'
+      ? Math.max(lastCardEnd, galleryMainSettleAt)
+      : lastCardEnd - 0.08;
+    if (target === 'gallery') {
+      // Atomic swap in one frame: hide morph cards + layout change + show live links.
+      // No fade gap and no overlap = no visible flicker at the end of gallery transitions.
+      tl.call(function () {
+        console.log('[SWAP] fired at tl.time=', tl.time().toFixed(3), 'handoffAt=', handoffAt.toFixed(3));
+        var galleryPage = document.getElementById('page-gallery');
+        gsap.set(toSecs, { y: 0, opacity: 1 });
+        if (galleryPage) galleryPage.classList.add('gallery-live-active');
+        CARDS.forEach(function (card) { gsap.set(card, { opacity: 0 }); });
+        gsap.set(live, { autoAlpha: 1, pointerEvents: 'auto' });
+        console.log('[SWAP] mc0 opacity after:', document.getElementById('mc0').style.opacity);
+        console.log('[SWAP] live autoAlpha after:', live.style.opacity, live.style.visibility);
+      }, null, handoffAt);
+    } else {
+      // Other transitions: gentle cross-fade
+      tl.to(CARDS, { opacity: 0, duration: 0.24, ease: 'power2.inOut', overwrite: 'auto' }, handoffAt);
+      tl.to(live, {
+        autoAlpha: 1,
+        duration: 0.24,
+        ease: 'power2.out',
+        onComplete: function () { live.style.pointerEvents = 'auto'; }
+      }, handoffAt + 0.1);
+    }
+    if (galleryFooter && target !== 'gallery') {
+      tl.set(galleryFooter, { visibility: 'visible' }, handoffAt + 0.1);
+      tl.to(galleryFooter, {
+        opacity: 1,
+        y: 0,
+        duration: 0.18,
+        ease: 'power2.out'
+      }, handoffAt + 0.1);
+    }
+  }
+
+}
+
+function syncGalleryPreviewOpenState() {
+  var pg = document.getElementById('page-gallery');
+  if (!pg) return;
+  var anyOpen = pg.querySelector('.link-preview.open');
+  pg.classList.toggle('gallery-preview-open', !!anyOpen);
+}
+
+window.togglePreview = function (e, id) {
+  if (e) e.preventDefault();
+  const preview = document.getElementById(id);
+  if (!preview) return;
+  const wrapper = preview.closest('.link-card-wrapper');
+  const isOpen = preview.classList.contains('open');
+  preview.classList.toggle('open');
+  if (wrapper) wrapper.classList.toggle('wrapper--open', !isOpen);
+  syncGalleryPreviewOpenState();
+  if (!isOpen) {
+    const iframe = preview.querySelector('iframe');
+    if (iframe && iframe.dataset.src && !iframe.getAttribute('src')) {
+      iframe.setAttribute('src', window.location.origin + iframe.dataset.src);
+    }
+    galleryPreviewScrollTimer = setTimeout(function () {
+      galleryPreviewScrollTimer = null;
+      if (current !== 'gallery') return;
+      var scrollEl = document.getElementById('page-gallery');
+      if (!wrapper || !scrollEl) return;
+      var cr = scrollEl.getBoundingClientRect();
+      var card = wrapper.querySelector('.link-card') || wrapper;
+      var tr = card.getBoundingClientRect();
+      var marginFromTop = 12;
+      var extraDown = 28;
+      var top = scrollEl.scrollTop + (tr.top - cr.top) - marginFromTop + extraDown;
+      top = Math.max(0, Math.min(top, scrollEl.scrollHeight - scrollEl.clientHeight));
+      scrollEl.scrollTo({ top: top, behavior: 'smooth' });
+    }, 420);
+  }
+};
+
+document.addEventListener('click', function (e) {
+  const t = e.target.closest('.gallery-live-links .js-preview-toggle');
+  if (!t) return;
+  const pid = t.getAttribute('data-preview-id');
+  if (pid) window.togglePreview(e, pid);
+});
+
+window.addEventListener('resize', function () {
+  clearTimeout(window.__morphResize);
+  window.__morphResize = setTimeout(function () {
+    if (typeof placeCards !== 'function') return;
+    if (current !== 'gallery') placeCards(current);
+  }, 120);
+});
+
+// ── DEBUG controls ──────────────────────────────────────────
+// S      = toggle slow-motion (0.08×) / normal  — לפני הניווט
+// Space  = pause / resume באמצע האנימציה
+// ← →   = כשעצור — צעד 50ms אחורה / קדימה
+var __dbgTl = null;
+var __dbgSlow = false;
+
+// Patch timeline creation so we always have a reference + inherit slow flag
+(function () {
+  var _orig = gsap.timeline.bind(gsap);
+  gsap.timeline = function (vars) {
+    var tl = _orig(vars);
+    __dbgTl = tl;
+    if (__dbgSlow) tl.timeScale(0.08);
+    return tl;
+  };
+})();
+
+document.addEventListener('keydown', function (e) {
+  // S = slow / normal (globalTimeline = כל GSAP)
+  if (e.code === 'KeyS') {
+    __dbgSlow = !__dbgSlow;
+    gsap.globalTimeline.timeScale(__dbgSlow ? 0.08 : 1);
+    if (__dbgTl) __dbgTl.timeScale(__dbgSlow ? 0.08 : 1);
+    console.log('[DBG] speed=' + (__dbgSlow ? '0.08×' : '1×'));
+  }
+  // Space = pause/resume
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!__dbgTl) return;
+    if (__dbgTl.paused()) {
+      __dbgTl.resume();
+      console.log('[DBG] resumed  time=' + __dbgTl.time().toFixed(3));
+    } else {
+      __dbgTl.pause();
+      console.log('[DBG] paused   time=' + __dbgTl.time().toFixed(3));
+    }
+  }
+  // → = step +50ms
+  if (e.code === 'ArrowRight' && __dbgTl && __dbgTl.paused()) {
+    __dbgTl.time(__dbgTl.time() + 0.05);
+    console.log('[DBG] → time=' + __dbgTl.time().toFixed(3));
+  }
+  // ← = step -50ms
+  if (e.code === 'ArrowLeft' && __dbgTl && __dbgTl.paused()) {
+    __dbgTl.time(Math.max(0, __dbgTl.time() - 0.05));
+    console.log('[DBG] ← time=' + __dbgTl.time().toFixed(3));
+  }
+});
+// ────────────────────────────────────────────────────────────
+</script>
+</body>
+</html>

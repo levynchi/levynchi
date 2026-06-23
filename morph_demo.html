@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>Levynchi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@100..700&family=Heebo:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      height: 100vh; background: #0d0b17;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; font-synthesis: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    #phone {
+      width: 390px; height: 844px;
+      background: #13111C;
+      border-radius: 28px; overflow: hidden;
+      border: 1px solid #2a2836;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.7);
+      display: flex; flex-direction: column;
+      clip-path: inset(0 round 28px);
+      isolation: isolate;
+    }
+
+    /* ── Navbar ── */
+    #navbar {
+      width: 390px; height: 56px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      direction: ltr; padding: 0 20px;
+      background: #13111C; border-bottom: 1px solid #2a2836;
+      position: relative; z-index: 20;
+    }
+    .logo-wrap { display: flex; align-items: center; gap: 8px; }
+    .logo-icon {
+      width: 32px; height: 32px; flex-shrink: 0;
+      background: url('/static/icons/logo_icon.png') center/contain no-repeat;
+    }
+    .logo-text {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 15px; letter-spacing: .08em; color: #fff;
+    }
+    .nav-links { display: flex; align-items: center; gap: 20px; direction: rtl; }
+    .nav-btn {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px; letter-spacing: .04em;
+      color: #AAAAAA; background: none; border: none; cursor: pointer;
+      transition: color .2s;
+    }
+    .nav-btn:hover { color: rgba(255,255,255,.7); }
+    .nav-btn.active { color: #fff; }
+
+    /* ── Stage ── */
+    #stage { position: relative; width: 390px; flex: 1; overflow: hidden; }
+
+    /* ── Pages (frame only — placeholders for card positions) ── */
+    .page {
+      position: absolute; top: 0; left: 0;
+      width: 390px; height: 100%;
+      display: flex; flex-direction: column;
+      overflow: hidden; pointer-events: none;
+    }
+
+    /* frame sections that fade in/out */
+    .fsec { width: 390px; flex-shrink: 0; }
+    .fsec.flex1 { flex: 1; flex-shrink: 1; }
+
+    /* placeholder = invisible card-shaped gap */
+    .ph {
+      flex: 1; flex-basis: 0%; min-height: 0;
+      background: transparent; pointer-events: none;
+    }
+
+    /* ── Morph layer ── */
+    #morph-layer {
+      position: absolute; top: 0; left: 0;
+      width: 390px; height: 100%;
+      pointer-events: none; z-index: 5;
+    }
+    .mc {
+      position: absolute; overflow: hidden;
+      will-change: transform, border-radius, width, height, opacity;
+    }
+
+    /* ── shared font helpers ── */
+    .jf { font-family: 'Josefin Sans', sans-serif; }
+    .hb { font-family: 'Heebo', sans-serif; }
+  </style>
+</head>
+<body>
+<div id="phone">
+
+  <!-- Navbar -->
+  <div id="navbar">
+    <div class="logo-wrap">
+      <div class="logo-icon"></div>
+      <span class="logo-text">LEVYNCHI</span>
+    </div>
+    <div class="nav-links">
+      <button class="nav-btn active" id="btn-home"    onclick="nav('home')">דף הבית</button>
+      <button class="nav-btn"        id="btn-about"   onclick="nav('about')">אודות</button>
+      <button class="nav-btn"        id="btn-gallery" onclick="nav('gallery')">גלריה</button>
+    </div>
+  </div>
+
+  <div id="stage">
+
+    <!-- ══════════════════════════════
+         HOME — frame sections only
+         (service cards are in morph layer)
+    ══════════════════════════════ -->
+    <div class="page" id="page-home">
+
+      <!-- Hero -->
+      <div class="fsec" style="height:310px;background:#13111C;direction:rtl;
+           display:flex;flex-direction:column;align-items:center;justify-content:center;
+           gap:14px;padding:0 24px 24px">
+        <span class="jf" style="color:#fff;font-size:40px;letter-spacing:-.01em;line-height:1">Levynchi</span>
+        <span class="jf" style="color:#fff;font-size:22px;font-weight:700;line-height:1.3;text-align:center">יוצרים הרמוניה<br>בין עיצוב לקוד</span>
+        <span class="jf" style="color:#fff;font-size:13px;line-height:1.7;max-width:280px;text-align:center">בונים ומעצבים אתרי Web, אפליקציות<br>ותכניות מקוונות בקוד נקי ומדויק</span>
+        <div style="background:#00D9C8;border-radius:4px;padding:13px 36px;margin-top:6px;cursor:pointer">
+          <span class="jf" style="color:#13111C;font-size:14px;letter-spacing:.05em">Let's Build It</span>
+        </div>
+      </div>
+
+      <!-- Services frame: label + 3 placeholders -->
+      <div class="fsec" style="background:#13111C;border-top:1px solid #2A2836;
+           direction:rtl;display:flex;flex-direction:column;gap:14px;
+           padding:24px 20px 28px;height:260px;overflow:hidden">
+        <span class="jf" style="color:#AAAAAA;font-size:11px;letter-spacing:.14em;text-transform:uppercase;text-align:right;flex-shrink:0;display:block;max-width:100%;overflow:hidden">השירותים שלנו</span>
+        <!-- row of 3 placeholders -->
+        <div style="display:flex;gap:10px;flex:1">
+          <div class="ph"></div>
+          <div class="ph"></div>
+          <div class="ph"></div>
+        </div>
+      </div>
+
+      <!-- Quote -->
+      <div class="fsec flex1" style="background:#13111C;border-top:1px solid #2A2836;
+           display:flex;align-items:center;justify-content:center;
+           direction:rtl;padding:20px 28px">
+        <span class="jf" style="color:#00D9C8;font-size:11.5px;line-height:1.85;text-align:center">
+          "אנחנו לא רק בונים אתר, אנחנו בונים נכס דיגיטלי.<br>
+          הקוד שלנו נקי, מהיר ומאובטח -<br>
+          בדיוק כמו שהמערכות הגדולות בעולם בנויות.<br>
+          זה קוד שמנועי חיפוש אוהבים לסרוק ומודלים AI יודעים לקרוא בקלות."
+        </span>
+      </div>
+
+    </div><!-- /page-home -->
+
+
+    <!-- ══════════════════════════════
+         ABOUT — frame sections only
+         (team cards are in morph layer)
+    ══════════════════════════════ -->
+    <div class="page" id="page-about" style="opacity:0">
+
+      <!-- About Hero -->
+      <div class="fsec" style="border-bottom:1px solid #2A2836;direction:rtl;
+           display:flex;flex-direction:column;align-items:center;gap:14px;
+           padding:28px 24px 24px">
+        <span class="jf" style="color:#fff;font-size:40px;letter-spacing:-.01em;line-height:1;text-align:center">About Us</span>
+        <span class="jf" style="color:#00FCFA;font-size:16px;font-weight:300;line-height:22px;max-width:320px;text-align:center">
+          אנחנו מאמינים שאתר הוא נכס דיגיטלי שצריך להיות כלעסקות המלאה.
+          אנחנו בונים קוד נקי, ללא תלות בפלטפורמות סגורות,
+          שמוכן לצמיחה שלכם ולעידן ה-AI.
+        </span>
+      </div>
+
+      <!-- 2 placeholders for team cards -->
+      <div class="fsec flex1" style="direction:rtl;display:flex;flex-direction:column;gap:12px;padding:16px 20px">
+        <div class="ph"></div>
+        <div class="ph"></div>
+      </div>
+
+      <!-- Footer -->
+      <div class="fsec" style="border-top:1px solid #2A2836;direction:rtl;
+           display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 24px">
+        <span class="hb" style="color:rgba(255,255,255,.55);font-size:13px;text-align:center">הקישון 6 תל אביב</span>
+        <span class="hb" style="color:rgba(255,255,255,.55);font-size:13px;text-align:center">052-8086466</span>
+        <span class="hb" style="color:rgba(255,255,255,.55);font-size:13px;text-align:center">Levynchi@gmail.com</span>
+      </div>
+
+    </div><!-- /page-about -->
+
+
+    <!-- ══════════════════════════════
+         GALLERY — frame sections only
+         (project cards are in morph layer)
+    ══════════════════════════════ -->
+    <div class="page" id="page-gallery" style="opacity:0">
+
+      <!-- Page Title -->
+      <div class="fsec" style="border-bottom:1px solid #2A2836;direction:rtl;
+           display:flex;flex-direction:column;align-items:center;padding:16px 20px 14px">
+        <span class="jf" style="color:#fff;font-size:32px;letter-spacing:-.01em;line-height:40px">הפרויקטים שלנו</span>
+        <span class="hb" style="color:#fff;font-size:13px;line-height:1.7;text-align:center">בונים ומעצבים אפליקציות WEB, חנויות ואתרים.<br>קוד נקי שמנועי חיפוש ומודלי AI אוהבים.</span>
+      </div>
+
+      <!-- 4 placeholders for project cards -->
+      <div class="fsec" style="height:468px;direction:rtl;display:flex;flex-direction:column;gap:10px;padding:14px 18px">
+        <div class="ph"></div>
+        <div class="ph"></div>
+        <div class="ph"></div>
+        <div class="ph"></div>
+      </div>
+
+      <!-- Why + Footer -->
+      <div class="fsec flex1" style="border-top:1px solid #2A2836;direction:rtl;
+           display:flex;flex-direction:column;gap:12px;padding:12px 22px 20px">
+        <div style="direction:rtl;display:flex;flex-direction:column;gap:3px">
+          <span class="hb" style="color:#fff;font-size:13px;line-height:1.7;text-align:right">✦ קוד נקי ומהיר</span>
+          <span class="hb" style="color:#AAAAAA;font-size:12px;line-height:1.6;text-align:right">באותה צורה שאינסטגרם, Pinterest בנויים. קוד שקל לקדם ואמצעי אבטחה חזקים.</span>
+        </div>
+        <div style="direction:rtl;display:flex;flex-direction:column;gap:3px">
+          <span class="hb" style="color:#fff;font-size:13px;line-height:1.7;text-align:right">✦ הקוד שלך לתמיד</span>
+          <span class="hb" style="color:#AAAAAA;font-size:12px;line-height:1.6;text-align:right">אנחנו בונים, מגישים, ואתה הבעלים. ללא תלות, ללא Wix, Shopify ו-WordPress.</span>
+        </div>
+        <div style="display:flex;justify-content:center;margin-top:auto;padding-top:4px">
+          <span class="jf" style="color:#fff;font-size:11px;letter-spacing:.04em">Levynchi © 2026</span>
+        </div>
+      </div>
+
+    </div><!-- /page-gallery -->
+
+
+    <!-- ══════════════════════════════
+         MORPH LAYER — 4 cards
+    ══════════════════════════════ -->
+    <div id="morph-layer">
+      <div class="mc" id="mc0"></div>
+      <div class="mc" id="mc1"></div>
+      <div class="mc" id="mc2"></div>
+      <div class="mc" id="mc3" style="opacity:0"></div>
+    </div>
+
+  </div><!-- /stage -->
+</div><!-- /phone -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script>
+// ──────────────────────────────────────────
+//  SCALE PHONE TO FIT VIEWPORT
+// ──────────────────────────────────────────
+(function() {
+  const ph = document.getElementById('phone');
+  const s  = Math.min(1, (window.innerHeight - 24) / 844, (window.innerWidth - 24) / 390);
+  if (s < 1) {
+    ph.style.transform = `scale(${s})`;
+    ph.style.transformOrigin = 'center center';
+  }
+})();
+
+// ──────────────────────────────────────────
+//  CARD CONTENT
+// ──────────────────────────────────────────
+function galleryCard(tag, title, desc, thumb) {
+  return `<div style="width:100%;height:100%;display:flex;align-items:center;
+    flex-direction:row-reverse;gap:12px;justify-content:space-between;
+    padding:14px 16px;direction:rtl;box-sizing:border-box">
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;direction:rtl">
+      <span style="font-family:'Josefin Sans',sans-serif;color:#fff;font-size:10px;
+        letter-spacing:.1em;align-self:flex-end">▽ ${tag}</span>
+      <span style="font-family:'Heebo',sans-serif;color:#fff;font-size:20px;
+        line-height:1.2;text-align:right">${title}</span>
+      <span style="font-family:'Heebo',sans-serif;color:#fff;font-size:12px;
+        line-height:1.5;text-align:right">${desc}</span>
+    </div>
+    <div style="width:72px;height:72px;flex-shrink:0;border-radius:12px;
+      background:url('/static/icons/${thumb}') center/cover"></div>
+  </div>`;
+}
+
+function aboutCard(glyph, name, role, bio) {
+  return `<div style="width:100%;height:100%;display:flex;flex-direction:column;
+    align-items:flex-start;gap:6px;padding:18px 16px;direction:rtl;box-sizing:border-box">
+    <span style="font-family:'Josefin Sans',sans-serif;color:#00D9C8;font-size:26px;line-height:1">${glyph}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#fff;font-size:20px;line-height:1.2">${name}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#00D9C8;font-size:13px">${role}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#fff;font-size:12px;
+      line-height:1.7;margin-top:4px;text-align:right">${bio}</span>
+  </div>`;
+}
+
+function homeCard(glyph, title, tag, desc) {
+  return `<div style="width:100%;height:100%;display:flex;flex-direction:column;
+    align-items:flex-start;gap:5px;padding:12px;direction:rtl;box-sizing:border-box">
+    <span style="font-family:'Josefin Sans',sans-serif;color:#00D9C8;font-size:24px;line-height:1">${glyph}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#fff;font-size:13px;
+      line-height:1.3;text-align:right;width:100%">${title}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#00D9C8;font-size:11px;
+      text-align:right;width:100%">${tag}</span>
+    <span style="font-family:'Josefin Sans',sans-serif;color:#888;font-size:11px;
+      line-height:1.6;text-align:right;width:100%">${desc}</span>
+  </div>`;
+}
+
+const CONTENT = {
+  gallery: [
+    galleryCard('CATALOG',     'קטלוג בגדי תינוקות',         'גלריית מוצרים עם סינון בקטגוריות שונות',   'thumb_catalog.png'),
+    galleryCard('LANDING PAGE','סדנאות גיל המעבר',            'דף נחיתה לסדנאות לעולם האירגוני',           'thumb_landing.png'),
+    galleryCard('E-COMMERCE',  'חנות אונליין',                 'חנות אונליין ללקוחות קטנה',                  'thumb_ecommerce.png'),
+    galleryCard('WEB-APP',     'אפליקציית WEB לניהול תורים',  "קביעת תורים אונליין, מאגר ג'טה",            'thumb_webapp.png'),
+  ],
+  about: [
+    aboutCard('&lt;\\&gt;', 'ליאור לוי', 'Tech & Automation',
+      'בניית ארכיטקטורת קוד, אוטומציות ותהליכים עסקיים, Custom Code המותאמים אישית לצרכי העסק.'),
+    aboutCard('✳', 'הדר לוי', 'Design & Vision',
+      'אפיון ועיצוב ממשקים (UI/UX) תוך הפיכת רעיונות מורכבים למערכות נקיות ופשוטות לשימוש.'),
+    null,
+    null,
+  ],
+  home: [
+    homeCard('✳',      'עיצוב ואפיון', '(UI/UX)',        'ממשקים אינטואיטיביים שמתמקדים בחוויית המשתמש'),
+    homeCard('#',      'התאמה טכנולוגית', 'ואוטומציות',  'קוד חכם שחוסך זמן ומשאבים לעסק שלך'),
+    homeCard('&lt;/&gt;', 'פיתוח', 'Custom Code',        'בניית אתרים מאפס בטכנולוגיות המתקדמות ביותר'),
+    null,
+  ],
+};
+
+const STYLE = {
+  gallery: { bg: '#1C1A28', outline: '1px solid #414141',  r: '16px' },
+  about:   { bg: '#1A2035', outline: '1px solid #2A2836',  r: '14px' },
+  home:    { bg: '#1C1A28', outline: '1px solid #2A2836',  r: '12px' },
+};
+
+// ──────────────────────────────────────────
+//  GET PLACEHOLDER RECTS (stage-relative, unscaled)
+// ──────────────────────────────────────────
+function getScale() {
+  const m = new DOMMatrix(window.getComputedStyle(document.getElementById('phone')).transform);
+  return m.a || 1;
+}
+
+function getRects(pageId) {
+  const stage = document.getElementById('stage');
+  const sr    = stage.getBoundingClientRect();
+  const s     = getScale();
+  return Array.from(document.querySelectorAll(`#page-${pageId} .ph`))
+    .map(ph => {
+      const r = ph.getBoundingClientRect();
+      return {
+        x: Math.round((r.left - sr.left) / s),
+        y: Math.round((r.top  - sr.top)  / s),
+        w: Math.round(r.width  / s),
+        h: Math.round(r.height / s),
+      };
+    });
+}
+
+// ──────────────────────────────────────────
+//  INIT — place morph cards at home positions
+// ──────────────────────────────────────────
+const CARDS = [
+  document.getElementById('mc0'),
+  document.getElementById('mc1'),
+  document.getElementById('mc2'),
+  document.getElementById('mc3'),
+];
+
+let current = 'home';
+let busy    = false;
+
+function placeCards(pageId) {
+  const rects = getRects(pageId);
+  const sty   = STYLE[pageId];
+  CARDS.forEach((card, i) => {
+    const r = rects[i];
+    const c = CONTENT[pageId][i];
+    if (r && c) {
+      gsap.set(card, { left: r.x, top: r.y, width: r.w, height: r.h,
+        borderRadius: sty.r, backgroundColor: sty.bg, opacity: 1, scale: 1 });
+      card.style.outline = sty.outline;
+      card.innerHTML = c;
+    } else {
+      gsap.set(card, { opacity: 0, scale: 0 });
+      card.innerHTML = '';
+    }
+  });
+}
+
+// Wait for fonts/layout then init
+window.addEventListener('load', () => {
+  // Temporarily show all pages for measurement
+  document.querySelectorAll('.page').forEach(p => { p.style.visibility = 'hidden'; p.style.opacity = '1'; });
+  requestAnimationFrame(() => {
+    placeCards('home');
+    // Restore visibility
+    document.querySelectorAll('.page').forEach(p => { p.style.visibility = ''; });
+    document.getElementById('page-home').style.opacity  = '1';
+    document.getElementById('page-about').style.opacity = '0';
+    document.getElementById('page-gallery').style.opacity = '0';
+  });
+});
+
+// ──────────────────────────────────────────
+//  NAV — morph transition
+// ──────────────────────────────────────────
+function setNavActive(page) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + page).classList.add('active');
+}
+
+function nav(target) {
+  if (target === current || busy) return;
+  busy = true;
+  setNavActive(target);
+
+  const fromId   = current;
+  const fromPage = document.getElementById('page-' + fromId);
+  const toPage   = document.getElementById('page-' + target);
+
+  // Temporarily show target page (invisible) so we can measure
+  gsap.set(toPage, { opacity: 0, visibility: 'visible' });
+  const toRects = getRects(target);
+  const toSty   = STYLE[target];
+
+  const fromSecs = Array.from(fromPage.querySelectorAll('.fsec'));
+  const toSecs   = Array.from(toPage.querySelectorAll('.fsec'));
+
+  // Hide target sections — they'll stagger in later
+  gsap.set(toSecs, { opacity: 0, y: 18 });
+
+  const tl = gsap.timeline({
+    onComplete() {
+      gsap.set(fromPage, { opacity: 0 });
+      toPage.style.pointerEvents = '';
+      current = target;
+      busy    = false;
+    }
+  });
+
+  // 1) Fade-out current page frame sections (staggered)
+  tl.to(fromSecs, {
+    opacity: 0, y: -14,
+    stagger: 0.045, duration: 0.28, ease: 'power2.in'
+  }, 0);
+
+  // 2) Morph each card to its target position
+  CARDS.forEach((card, i) => {
+    const tr  = toRects[i];
+    const tc  = CONTENT[target][i];
+    const stagger = i * 0.05;
+
+    if (!tr || !tc) {
+      // Card doesn't exist in target → shrink and fade
+      tl.to(card, { opacity: 0, scale: 0.7, duration: 0.25, ease: 'power2.in' }, stagger);
+    } else {
+      let swapped = false;
+      tl.to(card, {
+        left: tr.x, top: tr.y, width: tr.w, height: tr.h,
+        borderRadius: toSty.r, backgroundColor: toSty.bg,
+        opacity: 1, scale: 1,
+        duration: 0.72, ease: 'power3.inOut',
+        onUpdate() {
+          if (!swapped && this.progress() > 0.42) {
+            swapped = true;
+            // Quick content swap: fade out → swap → fade in
+            gsap.to(card, {
+              opacity: 0, duration: 0.08,
+              onComplete() {
+                card.style.outline = toSty.outline;
+                card.innerHTML = tc;
+                gsap.to(card, { opacity: 1, duration: 0.14 });
+              }
+            });
+          }
+        }
+      }, stagger);
+    }
+  });
+
+  // 3) Show target page background + fade in sections
+  tl.to(toPage, { opacity: 1, duration: 0.01 }, 0.28);
+  tl.to(toSecs, {
+    opacity: 1, y: 0,
+    stagger: 0.065, duration: 0.42, ease: 'power3.out'
+  }, 0.32);
+}
+</script>
+</body>
+</html>

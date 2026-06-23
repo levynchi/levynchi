@@ -10,3 +10,19 @@ staticfiles/
 *.jpg
 !static/icons/*.png
 !static/icons/*.jpg
+
+# Node / third-party tooling
+node_modules/
+vendor/
+
+# Local config (may contain secrets)
+.mcp.json
+
+# Animation/render artifacts and temp files
+anim_frames/
+result_*.gif
+*.webm
+*.avi
+tmp_*
+tmp_about_to_gallery_video/
+tmp_about_to_gallery_video_2/

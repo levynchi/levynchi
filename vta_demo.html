@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>View Transitions API — דוגמאות</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f0f0f;
+      font-family: sans-serif;
+      padding: 40px 24px;
+      color: #fff;
+    }
+
+    h1 { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .subtitle { text-align: center; font-size: 13px; color: #555; margin-bottom: 36px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 18px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .demo-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .label {
+      font-size: 11px; font-weight: 600; color: #555;
+      text-align: center; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+
+    .card {
+      border-radius: 14px;
+      padding: 22px 12px;
+      min-height: 110px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: pointer; user-select: none;
+      gap: 8px; font-size: 14px; font-weight: 600;
+      transition: filter 0.12s;
+    }
+    .card:hover  { filter: brightness(1.12); }
+    .card:active { filter: brightness(0.88); }
+    .card .icon  { font-size: 26px; }
+
+    .ca  { background: #e63946; color: #fff; }
+    .cb  { background: #1d84b5; color: #fff; }
+    .ca2 { background: #2a9d5c; color: #fff; }
+    .cb2 { background: #f4a261; color: #fff; }
+    .ca3 { background: #7c3aed; color: #fff; }
+    .cb3 { background: #db2777; color: #fff; }
+    .ca4 { background: #0f172a; color: #fff; }
+    .cb4 { background: #f1f5f9; color: #0f172a; }
+    .ca5 { background: #d97706; color: #fff; }
+    .cb5 { background: #065f46; color: #fff; }
+    .ca6 { background: #0e7490; color: #fff; }
+    .cb6 { background: #be123c; color: #fff; }
+    .ca7 { background: #4f46e5; color: #fff; }
+    .cb7 { background: #16a34a; color: #fff; }
+    .ca8 { background: #78350f; color: #fff; }
+    .cb8 { background: #1e3a5f; color: #fff; }
+
+    /* מבטל אנימציות ברירת מחדל — WAAPI ישלוט */
+    ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+    ::view-transition-old(active-card), ::view-transition-new(active-card) { animation: none; }
+  </style>
+</head>
+<body>
+
+  <h1>View Transitions API</h1>
+  <p class="subtitle">לחץ על כל כרטיס — רק הוא מתאנמט</p>
+
+  <div class="grid" id="grid"></div>
+
+  <script>
+    // ── הגדרת אנימציות באמצעות Web Animations API keyframes ──
+    var ANIMS = {
+      'fade': {
+        out: { kf: [{ opacity: 1 }, { opacity: 0 }],                                                  dur: 350, ease: 'ease' },
+        in:  { kf: [{ opacity: 0 }, { opacity: 1 }],                                                  dur: 350, ease: 'ease' }
+      },
+      'slide': {
+        out: { kf: [{ transform: 'translateX(0)',    opacity: 1 }, { transform: 'translateX(-115%)', opacity: 0 }], dur: 380, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'translateX(115%)', opacity: 0 }, { transform: 'translateX(0)',    opacity: 1 }], dur: 380, ease: 'ease-out' }
+      },
+      'slide-up': {
+        out: { kf: [{ transform: 'translateY(0)',    opacity: 1 }, { transform: 'translateY(-115%)', opacity: 0 }], dur: 380, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'translateY(115%)', opacity: 0 }, { transform: 'translateY(0)',    opacity: 1 }], dur: 380, ease: 'ease-out' }
+      },
+      'zoom': {
+        out: { kf: [{ transform: 'scale(1)',   opacity: 1 }, { transform: 'scale(0.05)', opacity: 0 }], dur: 320, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'scale(0.05)', opacity: 0 }, { transform: 'scale(1)',   opacity: 1 }], dur: 320, ease: 'ease-out' }
+      },
+      'zoom-in': {
+        out: { kf: [{ transform: 'scale(1)',  opacity: 1 }, { transform: 'scale(2)',  opacity: 0 }], dur: 320, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'scale(2)',  opacity: 0 }, { transform: 'scale(1)',  opacity: 1 }], dur: 320, ease: 'ease-out' }
+      },
+      'flip-y': {
+        out: { kf: [{ transform: 'perspective(500px) rotateY(0deg)',   opacity: 1 }, { transform: 'perspective(500px) rotateY(90deg)',  opacity: 0 }], dur: 280, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'perspective(500px) rotateY(-90deg)', opacity: 0 }, { transform: 'perspective(500px) rotateY(0deg)',  opacity: 1 }], dur: 280, ease: 'ease-out', delay: 280 }
+      },
+      'flip-x': {
+        out: { kf: [{ transform: 'perspective(500px) rotateX(0deg)',   opacity: 1 }, { transform: 'perspective(500px) rotateX(90deg)',  opacity: 0 }], dur: 280, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'perspective(500px) rotateX(-90deg)', opacity: 0 }, { transform: 'perspective(500px) rotateX(0deg)',  opacity: 1 }], dur: 280, ease: 'ease-out', delay: 280 }
+      },
+      'blur': {
+        out: { kf: [{ filter: 'blur(0px)',   opacity: 1, transform: 'scale(1)'    }, { filter: 'blur(20px)', opacity: 0, transform: 'scale(1.08)' }], dur: 380, ease: 'ease-in' },
+        in:  { kf: [{ filter: 'blur(20px)', opacity: 0, transform: 'scale(0.92)' }, { filter: 'blur(0px)',   opacity: 1, transform: 'scale(1)'    }], dur: 380, ease: 'ease-out' }
+      },
+      'wipe': {
+        out: { kf: [{ clipPath: 'inset(0 0% 0 0)'    }, { clipPath: 'inset(0 100% 0 0)' }], dur: 420, ease: 'ease-in-out' },
+        in:  { kf: [{ clipPath: 'inset(0 0 0 100%)' }, { clipPath: 'inset(0 0 0 0%)'   }], dur: 420, ease: 'ease-in-out' }
+      },
+      'iris': {
+        out: { kf: [{ clipPath: 'circle(75% at 50% 50%)' }, { clipPath: 'circle(0% at 50% 50%)'   }], dur: 420, ease: 'ease-in' },
+        in:  { kf: [{ clipPath: 'circle(0% at 50% 50%)'  }, { clipPath: 'circle(150% at 50% 50%)' }], dur: 420, ease: 'ease-out' }
+      },
+      'rotate': {
+        out: { kf: [{ transform: 'perspective(500px) rotateX(0deg)',   opacity: 1 }, { transform: 'perspective(500px) rotateX(90deg)',  opacity: 0 }], dur: 400, ease: 'ease-in',  transformOrigin: 'bottom center' },
+        in:  { kf: [{ transform: 'perspective(500px) rotateX(-90deg)', opacity: 0 }, { transform: 'perspective(500px) rotateX(0deg)',  opacity: 1 }], dur: 400, ease: 'ease-out', delay: 400, transformOrigin: 'top center' }
+      },
+      'spin': {
+        out: { kf: [{ transform: 'rotate(0deg)   scale(1)',   opacity: 1 }, { transform: 'rotate(180deg) scale(0)',   opacity: 0 }], dur: 380, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'rotate(-180deg) scale(0)',  opacity: 0 }, { transform: 'rotate(0deg)   scale(1)',   opacity: 1 }], dur: 380, ease: 'ease-out' }
+      },
+      'swing': {
+        out: { kf: [{ transform: 'perspective(500px) rotateY(0deg)',    opacity: 1 }, { transform: 'perspective(500px) rotateY(-90deg)', opacity: 0 }], dur: 380, ease: 'ease-in',  transformOrigin: 'top right' },
+        in:  { kf: [{ transform: 'perspective(500px) rotateY(90deg)',   opacity: 0 }, { transform: 'perspective(500px) rotateY(0deg)',   opacity: 1 }], dur: 380, ease: 'ease-out', delay: 380, transformOrigin: 'top left' }
+      },
+      'bounce': {
+        out: { kf: [{ transform: 'scale(1)',   opacity: 1 }, { transform: 'scale(0.4)', opacity: 0 }], dur: 280, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'scale(0.4)', opacity: 0 }, { transform: 'scale(1)',   opacity: 1 }], dur: 500, ease: 'cubic-bezier(0.34,1.56,0.64,1)' }
+      },
+      'glitch': {
+        out: { kf: [
+          { transform: 'none',                          opacity: 1 },
+          { transform: 'skewX(15deg) translateX(6px)',  opacity: 0.6 },
+          { transform: 'skewX(-10deg) translateX(-4px)',opacity: 0.3 },
+          { transform: 'none',                          opacity: 0 }
+        ], dur: 300, ease: 'steps(3)' },
+        in: { kf: [
+          { transform: 'skewX(-15deg) translateX(-6px)', opacity: 0 },
+          { transform: 'skewX(8deg) translateX(4px)',    opacity: 0.5 },
+          { transform: 'skewX(-4deg) translateX(-2px)',  opacity: 0.8 },
+          { transform: 'none',                           opacity: 1 }
+        ], dur: 300, ease: 'steps(3)' }
+      },
+      'squeeze': {
+        out: { kf: [{ transform: 'scaleX(1)', opacity: 1 }, { transform: 'scaleX(0)', opacity: 0.3 }], dur: 300, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'scaleX(0)', opacity: 0.3 }, { transform: 'scaleX(1)', opacity: 1 }], dur: 300, ease: 'ease-out' }
+      },
+      'diagonal': {
+        out: { kf: [{ clipPath: 'polygon(0 0,100% 0,100% 100%,0 100%)' }, { clipPath: 'polygon(100% 0,100% 0,100% 100%,100% 100%)' }], dur: 420, ease: 'ease-in-out' },
+        in:  { kf: [{ clipPath: 'polygon(0 0,0 0,0 100%,0 100%)'       }, { clipPath: 'polygon(0 0,100% 0,100% 100%,0 100%)'        }], dur: 420, ease: 'ease-in-out' }
+      },
+      'slide-down': {
+        out: { kf: [{ transform: 'translateY(0)',    opacity: 1 }, { transform: 'translateY(115%)',  opacity: 0 }], dur: 380, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'translateY(-115%)', opacity: 0 }, { transform: 'translateY(0)',    opacity: 1 }], dur: 380, ease: 'ease-out' }
+      },
+
+      // ── 20 חדשות ──
+
+      'skew': {
+        out: { kf: [{ transform: 'skewX(0deg)',   opacity: 1 }, { transform: 'skewX(35deg)',  opacity: 0 }], dur: 300, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'skewX(-35deg)', opacity: 0 }, { transform: 'skewX(0deg)',   opacity: 1 }], dur: 300, ease: 'ease-out' }
+      },
+      'roll': {
+        out: { kf: [{ transform: 'translateX(0)     rotate(0deg)',    opacity: 1 }, { transform: 'translateX(-120%) rotate(-360deg)', opacity: 0 }], dur: 480, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'translateX(120%)  rotate(360deg)',  opacity: 0 }, { transform: 'translateX(0)     rotate(0deg)',    opacity: 1 }], dur: 480, ease: 'ease-out' }
+      },
+      'cube': {
+        out: { kf: [{ transform: 'perspective(600px) translateX(0%)   rotateY(0deg)'  }, { transform: 'perspective(600px) translateX(-50%)  rotateY(-90deg)' }], dur: 420, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'perspective(600px) translateX(50%)  rotateY(90deg)' }, { transform: 'perspective(600px) translateX(0%)    rotateY(0deg)'   }], dur: 420, ease: 'ease-out' }
+      },
+      'fold': {
+        out: { kf: [{ transform: 'scaleY(1)', transformOrigin: 'bottom center', opacity: 1 }, { transform: 'scaleY(0)', transformOrigin: 'bottom center', opacity: 0 }], dur: 300, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'scaleY(0)', transformOrigin: 'top center',    opacity: 0 }, { transform: 'scaleY(1)', transformOrigin: 'top center',    opacity: 1 }], dur: 300, ease: 'ease-out' }
+      },
+      'flash': {
+        out: { kf: [{ opacity: 1, filter: 'brightness(1)' }, { opacity: 1, filter: 'brightness(6)' }, { opacity: 0, filter: 'brightness(6)' }], dur: 280, ease: 'ease-in' },
+        in:  { kf: [{ opacity: 0, filter: 'brightness(6)' }, { opacity: 1, filter: 'brightness(1)' }], dur: 280, ease: 'ease-out' }
+      },
+      'shutter': {
+        out: { kf: [{ clipPath: 'inset(0% 0 0% 0)'    }, { clipPath: 'inset(50% 0 50% 0)'  }], dur: 350, ease: 'ease-in' },
+        in:  { kf: [{ clipPath: 'inset(50% 0 50% 0)'  }, { clipPath: 'inset(0% 0 0% 0)'    }], dur: 350, ease: 'ease-out' }
+      },
+      'curtain': {
+        out: { kf: [{ clipPath: 'inset(0 0% 0 0%)'   }, { clipPath: 'inset(0 50% 0 50%)' }], dur: 380, ease: 'ease-in' },
+        in:  { kf: [{ clipPath: 'inset(0 50% 0 50%)' }, { clipPath: 'inset(0 0% 0 0%)'   }], dur: 380, ease: 'ease-out' }
+      },
+      'implode': {
+        out: { kf: [{ transform: 'scale(1)',   transformOrigin: 'top left',     opacity: 1 }, { transform: 'scale(0)', transformOrigin: 'top left',     opacity: 0 }], dur: 340, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'scale(0)',   transformOrigin: 'bottom right', opacity: 0 }, { transform: 'scale(1)', transformOrigin: 'bottom right', opacity: 1 }], dur: 340, ease: 'ease-out' }
+      },
+      'twist': {
+        out: { kf: [{ transform: 'rotate(0deg)   scale(1)',   opacity: 1 }, { transform: 'rotate(90deg)  scale(0)',   opacity: 0 }], dur: 340, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'rotate(-90deg) scale(0)',   opacity: 0 }, { transform: 'rotate(0deg)   scale(1)',   opacity: 1 }], dur: 340, ease: 'ease-out' }
+      },
+      'drop': {
+        out: { kf: [{ transform: 'translateY(0)',    opacity: 1 }, { transform: 'translateY(120%)', opacity: 0.2 }], dur: 400, ease: 'cubic-bezier(0.55,0,1,0.45)' },
+        in:  { kf: [{ transform: 'translateY(-120%)', opacity: 0.2 }, { transform: 'translateY(0)',  opacity: 1   }], dur: 400, ease: 'cubic-bezier(0,0.55,0.45,1)' }
+      },
+      'newspaper': {
+        out: { kf: [{ transform: 'rotate(0deg)    scale(1)', opacity: 1 }, { transform: 'rotate(-720deg) scale(0)', opacity: 0 }], dur: 600, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'rotate(720deg)  scale(0)', opacity: 0 }, { transform: 'rotate(0deg)    scale(1)', opacity: 1 }], dur: 600, ease: 'ease-out' }
+      },
+      'float': {
+        out: { kf: [{ transform: 'translateY(0)',    opacity: 1 }, { transform: 'translateY(-50px)', opacity: 0 }], dur: 320, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'translateY(50px)', opacity: 0 }, { transform: 'translateY(0)',     opacity: 1 }], dur: 400, ease: 'cubic-bezier(0.22,1,0.36,1)' }
+      },
+      'tilt-l': {
+        out: { kf: [{ transform: 'perspective(400px) rotateY(0deg)'  }, { transform: 'perspective(400px) rotateY(30deg)',  opacity: 0 }], dur: 360, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'perspective(400px) rotateY(-30deg)', opacity: 0 }, { transform: 'perspective(400px) rotateY(0deg)'  }], dur: 360, ease: 'ease-out' }
+      },
+      'tilt-r': {
+        out: { kf: [{ transform: 'perspective(400px) rotateY(0deg)'    }, { transform: 'perspective(400px) rotateY(-30deg)', opacity: 0 }], dur: 360, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'perspective(400px) rotateY(30deg)',  opacity: 0 }, { transform: 'perspective(400px) rotateY(0deg)'    }], dur: 360, ease: 'ease-out' }
+      },
+      'rubber': {
+        out: { kf: [{ transform: 'scaleX(1)', opacity: 1 }, { transform: 'scaleX(1.4)', opacity: 0.7 }, { transform: 'scaleX(0)', opacity: 0 }], dur: 360, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'scaleX(0)', opacity: 0 }, { transform: 'scaleX(1.3)', opacity: 0.9 }, { transform: 'scaleX(1)', opacity: 1 }], dur: 420, ease: 'ease-out' }
+      },
+      'book': {
+        out: { kf: [{ transform: 'perspective(700px) rotateY(0deg)',    transformOrigin: 'left center', opacity: 1 }, { transform: 'perspective(700px) rotateY(-180deg)', transformOrigin: 'left center', opacity: 0 }], dur: 500, ease: 'ease-in-out' },
+        in:  { kf: [{ transform: 'perspective(700px) rotateY(180deg)',  transformOrigin: 'right center', opacity: 0 }, { transform: 'perspective(700px) rotateY(0deg)',   transformOrigin: 'right center', opacity: 1 }], dur: 500, ease: 'ease-in-out', delay: 500 }
+      },
+      'ripple-corner': {
+        out: { kf: [{ clipPath: 'circle(150% at 0% 100%)' }, { clipPath: 'circle(0%   at 0% 100%)' }], dur: 450, ease: 'ease-in' },
+        in:  { kf: [{ clipPath: 'circle(0%   at 100% 0%)' }, { clipPath: 'circle(150% at 100% 0%)' }], dur: 450, ease: 'ease-out' }
+      },
+      'morph': {
+        out: { kf: [{ clipPath: 'inset(0% round 14px)', opacity: 1 }, { clipPath: 'inset(20% round 50%)', opacity: 0 }], dur: 360, ease: 'ease-in' },
+        in:  { kf: [{ clipPath: 'inset(20% round 50%)', opacity: 0 }, { clipPath: 'inset(0%  round 14px)', opacity: 1 }], dur: 360, ease: 'ease-out' }
+      },
+      'zoom-blur': {
+        out: { kf: [{ transform: 'scale(1)',    filter: 'blur(0px)',   opacity: 1 }, { transform: 'scale(3)',   filter: 'blur(16px)', opacity: 0 }], dur: 380, ease: 'ease-in' },
+        in:  { kf: [{ transform: 'scale(0.3)',  filter: 'blur(16px)', opacity: 0 }, { transform: 'scale(1)',    filter: 'blur(0px)',   opacity: 1 }], dur: 380, ease: 'ease-out' }
+      },
+      'push': {
+        out: { kf: [{ transform: 'translateX(0)'    }, { transform: 'translateX(-100%)' }], dur: 380, ease: 'ease-in-out' },
+        in:  { kf: [{ transform: 'translateX(100%)' }, { transform: 'translateX(0)'     }], dur: 380, ease: 'ease-in-out' }
+      },
+    };
+
+    var cards = [
+      { vt:'fade',      label:'Fade',        ca:'ca',  cb:'cb',  ia:'✦', ib:'✧' },
+      { vt:'slide',     label:'Slide →',     ca:'ca2', cb:'cb2', ia:'→', ib:'←' },
+      { vt:'slide-up',  label:'Slide ↑',     ca:'ca3', cb:'cb5', ia:'↑', ib:'↓' },
+      { vt:'slide-down',label:'Slide ↓',     ca:'ca6', cb:'cb7', ia:'↓', ib:'↑' },
+      { vt:'zoom',      label:'Zoom',        ca:'ca3', cb:'cb3', ia:'⊕', ib:'⊖' },
+      { vt:'zoom-in',   label:'Zoom Out',    ca:'ca5', cb:'cb6', ia:'⊞', ib:'⊟' },
+      { vt:'flip-y',    label:'Flip Y',      ca:'ca',  cb:'cb',  ia:'↔', ib:'↔' },
+      { vt:'flip-x',    label:'Flip X',      ca:'ca5', cb:'cb5', ia:'↕', ib:'↕' },
+      { vt:'blur',      label:'Blur',        ca:'ca4', cb:'cb4', ia:'◎', ib:'●' },
+      { vt:'wipe',      label:'Wipe →',      ca:'ca5', cb:'cb2', ia:'▶', ib:'◀' },
+      { vt:'iris',      label:'Iris',        ca:'ca2', cb:'cb3', ia:'◉', ib:'○' },
+      { vt:'rotate',    label:'Rotate 3D',   ca:'ca3', cb:'cb',  ia:'⟳', ib:'⟲' },
+      { vt:'spin',      label:'Spin',        ca:'ca6', cb:'cb6', ia:'✺', ib:'✺' },
+      { vt:'swing',     label:'Swing',       ca:'ca8', cb:'cb8', ia:'🚪',ib:'🚪' },
+      { vt:'bounce',    label:'Bounce',      ca:'ca',  cb:'cb2', ia:'◆', ib:'◇' },
+      { vt:'glitch',    label:'Glitch',      ca:'ca6', cb:'cb3', ia:'⚡', ib:'⚡' },
+      { vt:'squeeze',   label:'Squeeze',     ca:'ca5', cb:'cb7', ia:'◀▶',ib:'▶◀' },
+      { vt:'diagonal',      label:'Diagonal',       ca:'ca7', cb:'cb5', ia:'◤',  ib:'◢'  },
+      { vt:'skew',          label:'Skew',           ca:'ca',  cb:'cb3', ia:'⟋',  ib:'⟍'  },
+      { vt:'roll',          label:'Roll',           ca:'ca2', cb:'cb',  ia:'⟳',  ib:'⟲'  },
+      { vt:'cube',          label:'Cube',           ca:'ca3', cb:'cb2', ia:'⬛', ib:'⬜' },
+      { vt:'fold',          label:'Fold',           ca:'ca6', cb:'cb5', ia:'▼',  ib:'▲'  },
+      { vt:'flash',         label:'Flash',          ca:'ca4', cb:'cb3', ia:'⚡', ib:'✦'  },
+      { vt:'shutter',       label:'Shutter',        ca:'ca5', cb:'cb6', ia:'◫',  ib:'◫'  },
+      { vt:'curtain',       label:'Curtain',        ca:'ca7', cb:'cb8', ia:'◨',  ib:'◧'  },
+      { vt:'implode',       label:'Implode',        ca:'ca',  cb:'cb7', ia:'◉',  ib:'◎'  },
+      { vt:'twist',         label:'Twist',          ca:'ca3', cb:'cb5', ia:'✳',  ib:'✴'  },
+      { vt:'drop',          label:'Drop',           ca:'ca8', cb:'cb3', ia:'▼',  ib:'▲'  },
+      { vt:'newspaper',     label:'Newspaper',      ca:'ca4', cb:'cb2', ia:'📰', ib:'📰' },
+      { vt:'float',         label:'Float',          ca:'ca2', cb:'cb6', ia:'↥',  ib:'↧'  },
+      { vt:'tilt-l',        label:'Tilt ←',         ca:'ca6', cb:'cb',  ia:'◁',  ib:'▷'  },
+      { vt:'tilt-r',        label:'Tilt →',         ca:'ca5', cb:'cb3', ia:'▷',  ib:'◁'  },
+      { vt:'rubber',        label:'Rubber',         ca:'ca',  cb:'cb5', ia:'↔',  ib:'↔'  },
+      { vt:'book',          label:'Book',           ca:'ca7', cb:'cb6', ia:'📖', ib:'📗' },
+      { vt:'ripple-corner', label:'Ripple Corner',  ca:'ca3', cb:'cb8', ia:'◢',  ib:'◤'  },
+      { vt:'morph',         label:'Morph',          ca:'ca2', cb:'cb3', ia:'■',  ib:'●'  },
+      { vt:'zoom-blur',     label:'Zoom + Blur',    ca:'ca6', cb:'cb5', ia:'⊕',  ib:'⊗'  },
+      { vt:'push',          label:'Push',           ca:'ca8', cb:'cb2', ia:'»',  ib:'«'  },
+    ];
+
+    var grid = document.getElementById('grid');
+
+    cards.forEach(function(cfg) {
+      var wrap  = document.createElement('div');
+      wrap.className = 'demo-wrap';
+
+      var label = document.createElement('div');
+      label.className   = 'label';
+      label.textContent = cfg.label;
+
+      var card = document.createElement('div');
+      card.className     = 'card ' + cfg.ca;
+      card.dataset.vt    = cfg.vt;
+      card.dataset.state = 'a';
+      card.dataset.ca    = cfg.ca;
+      card.dataset.cb    = cfg.cb;
+      card.dataset.ia    = cfg.ia;
+      card.dataset.ib    = cfg.ib;
+      card.dataset.label = cfg.label;
+      card.innerHTML     = '<span class="icon">' + cfg.ia + '</span><span>' + cfg.label + '</span>';
+
+      card.addEventListener('click', function() { switchCard(card); });
+
+      wrap.appendChild(label);
+      wrap.appendChild(card);
+      grid.appendChild(wrap);
+    });
+
+    function switchCard(card) {
+      if (card.dataset.busy) return;
+      card.dataset.busy  = '1';
+
+      var isA     = card.dataset.state === 'a';
+      var nextCls = isA ? card.dataset.cb : card.dataset.ca;
+      var nextIcon= isA ? card.dataset.ib : card.dataset.ia;
+      var vtType  = card.dataset.vt;
+      var anim    = ANIMS[vtType];
+
+      // מקצה שם רק לכרטיס הנלחץ
+      card.style.viewTransitionName = 'active-card';
+
+      function doChange() {
+        card.className     = 'card ' + nextCls;
+        card.dataset.state = isA ? 'b' : 'a';
+        card.innerHTML     = '<span class="icon">' + nextIcon + '</span><span>' + card.dataset.label + '</span>';
+        card.dataset.vt    = vtType;
+      }
+
+      if (!document.startViewTransition || !anim) {
+        doChange();
+        card.style.viewTransitionName = '';
+        delete card.dataset.busy;
+        return;
+      }
+
+      var vt = document.startViewTransition(doChange);
+
+      // Web Animations API — מופעל אחרי שהדפדפן צילם את שני המצבים
+      vt.ready.then(function() {
+        var dur = Math.max(
+          (anim.out.delay || 0) + anim.out.dur,
+          (anim.in.delay  || 0) + anim.in.dur
+        );
+
+        document.documentElement.animate(anim.out.kf, {
+          duration:        anim.out.dur,
+          delay:           anim.out.delay || 0,
+          easing:          anim.out.ease,
+          fill:            'both',
+          pseudoElement:   '::view-transition-old(active-card)'
+        });
+
+        document.documentElement.animate(anim.in.kf, {
+          duration:        anim.in.dur,
+          delay:           anim.in.delay || 0,
+          easing:          anim.in.ease,
+          fill:            'both',
+          pseudoElement:   '::view-transition-new(active-card)'
+        });
+      });
+
+      vt.finished.then(function() {
+        card.style.viewTransitionName = '';
+        delete card.dataset.busy;
+      });
+    }
+  </script>
+</body>
+</html>

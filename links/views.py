@@ -8,13 +8,27 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# #region agent log
+import json as _json, time as _time, os as _os
+def _dbglog(hyp, message, data):
+    try:
+        rec = {"sessionId": "cbadb7", "runId": "run1", "hypothesisId": hyp,
+               "location": "links/views.py", "message": message, "data": data,
+               "timestamp": int(_time.time() * 1000)}
+        _p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "debug-cbadb7.log")
+        with open(_p, "a", encoding="utf-8") as _f:
+            _f.write(_json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+# #endregion
+
 PROJECTS = [
     {
         'name': 'קטלוג בגדי תינוקות',
         'description': 'גלריית מוצרים עם סינון לפי גיל וגודל',
         'tag': 'Catalog',
         'icon': 'catalog',
-        'icon_img': 'icons/levynchi-logo-white.png',
+        'icon_img': 'icons/thumb_catalog_white_logo.png',
         'url': '#',
         'preview': 'proxy_catalog',
         'preview_id': 'preview-1',
@@ -53,11 +67,32 @@ PROJECTS = [
 
 @xframe_options_exempt
 def personal_links(request):
-    return render(request, 'links/personal_links.html', {'projects': PROJECTS})
+    path_key = request.path.strip('/')
+    if path_key == 'about':
+        initial_route = 'about'
+    elif path_key == 'projects':
+        initial_route = 'projects'
+    else:
+        initial_route = 'home'
+    return render(
+        request,
+        'links/personal_links.html',
+        {'projects': PROJECTS, 'initial_route': initial_route},
+    )
+
+
+def morph_demo(request):
+    return render(request, 'links/morph_demo.html', {'projects': PROJECTS})
 
 
 def _proxy_site(request, base_site, proxy_prefix, default_path, path=''):
     target_url = base_site + '/' + (path if path else default_path.lstrip('/'))
+
+    # #region agent log
+    _t0 = _time.time()
+    _dbglog("A", "proxy request start", {"base_site": base_site, "proxy_prefix": proxy_prefix,
+            "path": path, "is_first_load": (path == ''), "target_url": target_url, "timeout": 15})
+    # #endregion
 
     try:
         session = requests.Session()
@@ -78,16 +113,28 @@ def _proxy_site(request, base_site, proxy_prefix, default_path, path=''):
         )
         resp.raise_for_status()
         all_cookies = session.cookies
+        # #region agent log
+        _dbglog("A", "proxy request success", {"base_site": base_site, "path": path,
+                "is_first_load": (path == ''), "status_code": resp.status_code,
+                "elapsed_s": round(_time.time() - _t0, 2),
+                "content_len": len(resp.content),
+                "content_type": resp.headers.get('Content-Type', '')})
+        # #endregion
     except Exception as e:
+        # #region agent log
+        _dbglog("A", "proxy request FAILED", {"base_site": base_site, "path": path,
+                "is_first_load": (path == ''), "exc_type": type(e).__name__,
+                "exc_msg": str(e)[:300], "elapsed_s": round(_time.time() - _t0, 2)})
+        # #endregion
         return HttpResponseServerError(f'לא ניתן לטעון את האתר כרגע. שגיאה: {e}')
 
     host = urlparse(base_site).netloc
     content_type = resp.headers.get('Content-Type', '')
-    print(f'[PROXY] {target_url} → {content_type} | {len(resp.content)}b | preview: {resp.text[:200]}')
+    print(f'[PROXY] {target_url} -> {content_type} | {len(resp.content)}b')
 
     # For non-HTML responses (JSON, JS, CSS etc.) return as-is
     if 'text/html' not in content_type:
-        print(f'[PROXY NON-HTML] {target_url} → {content_type} {len(resp.content)}b preview: {resp.text[:300]}')
+        print(f'[PROXY NON-HTML] {target_url} -> {content_type} {len(resp.content)}b')
         response = HttpResponse(resp.content, content_type=content_type)
         response['Access-Control-Allow-Origin'] = '*'
         for name, value in all_cookies.items():

@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Room Transitions — Demo</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #c9907e; }
+    canvas { display: block; position: fixed; top: 0; left: 0; z-index: 0; }
+
+    #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+
+    /* ── Slides ── */
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: white;
+      opacity: 0;
+    }
+    .slide-label {
+      font-family: 'Helvetica Neue', Helvetica, sans-serif;
+      font-size: 11px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      opacity: 0.65;
+      margin-bottom: 14px;
+    }
+    .slide-title {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: clamp(44px, 7vw, 90px);
+      font-weight: 300;
+      line-height: 1.05;
+      text-shadow: 0 2px 30px rgba(0,0,0,0.22);
+    }
+    .slide-title em { font-style: italic; }
+
+    /* ── Nav ── */
+    #nav {
+      position: absolute;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+      background: rgba(0,0,0,0.18);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 6px;
+      border-radius: 50px;
+      border: 1px solid rgba(255,255,255,0.18);
+      pointer-events: all;
+    }
+    .nav-btn {
+      background: transparent;
+      border: none;
+      padding: 9px 22px;
+      border-radius: 44px;
+      cursor: pointer;
+      font-family: 'Helvetica Neue', Helvetica, sans-serif;
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.65);
+      transition: color 0.3s, background 0.3s;
+    }
+    .nav-btn:hover { color: white; background: rgba(255,255,255,0.12); }
+    .nav-btn.is-active { color: white; background: rgba(255,255,255,0.22); }
+
+    /* ── Dots ── */
+    #dots {
+      position: absolute;
+      top: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.32);
+      transition: transform 0.4s, background 0.4s;
+    }
+    .dot.is-active { background: white; transform: scale(1.6); }
+
+    /* ── Hint ── */
+    #hint {
+      position: absolute;
+      bottom: 96px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Helvetica Neue', Helvetica, sans-serif;
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.38);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ────────────────── UI ────────────────── -->
+<div id="ui">
+
+  <div class="slide" id="slide-0">
+    <div class="slide-label">A brand, digital &amp; motion studio</div>
+    <div class="slide-title">Creating the<br><em>unexpected</em></div>
+  </div>
+
+  <div class="slide" id="slide-1">
+    <div class="slide-label">Our work</div>
+    <div class="slide-title">Selected<br><em>projects</em></div>
+  </div>
+
+  <div class="slide" id="slide-2">
+    <div class="slide-label">Say hello</div>
+    <div class="slide-title"><em>Contact</em><br>us</div>
+  </div>
+
+  <div id="dots">
+    <div class="dot is-active"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  </div>
+
+  <div id="nav">
+    <button class="nav-btn is-active" onclick="goTo(0)">Index</button>
+    <button class="nav-btn"           onclick="goTo(1)">Projects</button>
+    <button class="nav-btn"           onclick="goTo(2)">Contact</button>
+  </div>
+
+  <div id="hint">← → arrow keys to navigate</div>
+</div>
+
+<!-- Three.js r134 + GSAP 3 -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════
+//  RENDERER
+// ════════════════════════════════════════════
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+// ════════════════════════════════════════════
+//  SCENE & CAMERA
+// ════════════════════════════════════════════
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 200);
+
+// Smooth look-at target (GSAP animates this vector)
+const lookTarget = new THREE.Vector3(0, 1.5, 0);
+
+// Per-room camera stations
+const ROOMS = [
+  { pos: new THREE.Vector3( 0, 2.2, 9.0), look: new THREE.Vector3( 0, 1.5, 0), fog: 0xc9907e, bg: 0xc9907e },
+  { pos: new THREE.Vector3(30, 2.0, 8.5), look: new THREE.Vector3(30, 1.5, 0), fog: 0xe2deda, bg: 0xe2deda },
+  { pos: new THREE.Vector3(60, 1.9, 8.0), look: new THREE.Vector3(60, 1.5, 0), fog: 0xdecece, bg: 0xdecece },
+];
+
+camera.position.copy(ROOMS[0].pos);
+camera.lookAt(lookTarget);
+scene.fog = new THREE.FogExp2(ROOMS[0].fog, 0.033);
+scene.background = new THREE.Color(ROOMS[0].bg);
+
+// ════════════════════════════════════════════
+//  LIGHTS (global)
+// ════════════════════════════════════════════
+scene.add(new THREE.AmbientLight(0xffeedd, 0.75));
+
+const sun = new THREE.DirectionalLight(0xfff2d8, 2.0);
+sun.position.set(6, 14, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 0.5;
+sun.shadow.camera.far  = 130;
+sun.shadow.camera.left  = -28;
+sun.shadow.camera.right =  28;
+sun.shadow.camera.top   =  28;
+sun.shadow.camera.bottom = -28;
+scene.add(sun);
+
+// ════════════════════════════════════════════
+//  GEOMETRY / MATERIAL HELPERS
+// ════════════════════════════════════════════
+function box(w, h, d, mat, x, y, z, rx=0, ry=0, rz=0, shadow=true) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  m.rotation.set(rx, ry, rz);
+  if (shadow) { m.castShadow = true; m.receiveShadow = true; }
+  scene.add(m);
+  return m;
+}
+
+function cyl(rt, rb, h, seg, mat, x, y, z) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
+  m.position.set(x, y, z);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  scene.add(m);
+  return m;
+}
+
+function plane(w, d, mat, x, y, z) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, y, z);
+  m.receiveShadow = true;
+  scene.add(m);
+  return m;
+}
+
+// Half-torus arch + two pillars
+function arch(mat, cx, cy, cz, r=2.0) {
+  const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.22, 10, 28, Math.PI), mat);
+  t.position.set(cx, cy + r, cz);
+  t.rotation.z = Math.PI;
+  t.castShadow = true;
+  scene.add(t);
+  const h = cy + r * 0.7;
+  box(0.42, h, 0.42, mat, cx - r - 0.18, h/2, cz);
+  box(0.42, h, 0.42, mat, cx + r + 0.18, h/2, cz);
+}
+
+// ════════════════════════════════════════════
+//  WATER SHADER
+// ════════════════════════════════════════════
+const waterUniforms = []; // collect for tick updates
+
+function water(w, d, x, y, z, c1=0x708090, c2=0x90aabb) {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:   { value: 0 },
+      uColor1: { value: new THREE.Color(c1) },
+      uColor2: { value: new THREE.Color(c2) },
+    },
+    vertexShader: `
+      uniform float uTime;
+      varying vec2  vUv;
+      varying float vH;
+      void main() {
+        vUv = uv;
+        vec3 p = position;
+        p.z += sin(p.x * 1.9 + uTime       ) * 0.07
+             + sin(p.y * 1.4 + uTime * 0.8 ) * 0.05
+             + sin((p.x - p.y) * 0.7 + uTime * 0.55) * 0.04;
+        vH = p.z;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      uniform vec3  uColor1;
+      uniform vec3  uColor2;
+      varying vec2  vUv;
+      varying float vH;
+      void main() {
+        float t = clamp(vH * 4.5 + 0.55, 0.0, 1.0);
+        vec3 col = mix(uColor1, uColor2, t);
+        // shimmer highlights
+        float s = sin(vUv.x * 20.0 + uTime * 1.6)
+                * sin(vUv.y * 15.0 + uTime * 1.1) * 0.07;
+        col += s;
+        // soft edge fade
+        float ex = smoothstep(0.0, 0.07, vUv.x) * smoothstep(0.0, 0.07, 1.0 - vUv.x);
+        float ey = smoothstep(0.0, 0.07, vUv.y) * smoothstep(0.0, 0.07, 1.0 - vUv.y);
+        float alpha = (0.75 + s) * ex * ey;
+        gl_FragColor = vec4(col, alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite:  false,
+    side: THREE.DoubleSide,
+  });
+
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d, 56, 56), mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, y, z);
+  m.receiveShadow = true;
+  scene.add(m);
+  waterUniforms.push(mat.uniforms.uTime);
+  return m;
+}
+
+// ════════════════════════════════════════════
+//  MATERIALS
+// ════════════════════════════════════════════
+const M = {
+  terra:   new THREE.MeshStandardMaterial({ color: 0xb87860, roughness: 0.92 }),
+  sand:    new THREE.MeshStandardMaterial({ color: 0xcdb49c, roughness: 0.88 }),
+  stone:   new THREE.MeshStandardMaterial({ color: 0xd0baa8, roughness: 0.82 }),
+  white:   new THREE.MeshStandardMaterial({ color: 0xf2eee8, roughness: 0.72 }),
+  marble:  new THREE.MeshStandardMaterial({ color: 0xeeeae4, roughness: 0.18, metalness: 0.3 }),
+  pink:    new THREE.MeshStandardMaterial({ color: 0xe2c4c0, roughness: 0.88 }),
+  pFloor:  new THREE.MeshStandardMaterial({ color: 0xd8b0ae, roughness: 0.14, metalness: 0.45 }),
+  velvet:  new THREE.MeshStandardMaterial({ color: 0xc27872, roughness: 0.94 }),
+  metal:   new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.28, metalness: 0.92 }),
+  pearl:   new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.04, metalness: 0.96 }),
+  glass:   new THREE.MeshStandardMaterial({ color: 0xaaccdd, roughness: 0.04, metalness: 0.2, transparent: true, opacity: 0.5 }),
+  gold:    new THREE.MeshStandardMaterial({ color: 0xddbb88, roughness: 0.08, metalness: 0.92 }),
+};
+
+// ════════════════════════════════════════════
+//  ROOM 0  –  HOME  (Terracotta Desert)
+// ════════════════════════════════════════════
+{
+  const X = 0;
+
+  // Water floor
+  water(24, 24, X, 0.02, 0, 0x607888, 0x8aaabb);
+
+  // Walls
+  box(24, 12, 0.5, M.terra, X,    6, -9, 0, 0, 0, false); // back
+  box( 0.5, 12, 24, M.terra, X-9, 6,  0, 0, 0, 0, false); // left
+  box( 0.5, 12, 10, M.terra, X+9, 6, -5, 0, 0, 0, false); // right (partial)
+  box( 0.5,  4,  5, M.terra, X+9, 9,  1.5, 0, 0, 0, false); // above window gap
+  box(24, 0.4, 24, new THREE.MeshStandardMaterial({ color: 0xa86050, roughness: 0.95 }), X, 10.2, 0, 0, 0, 0, false); // ceil
+
+  // Arch in back wall
+  arch(M.stone, X, 0, -9, 2.3);
+
+  // Stairs
+  for (let i = 0; i < 6; i++) {
+    box(3.0, 0.22, 0.55, M.stone, X, 0.11 + i*0.22, -3.5 + i*0.55);
+  }
+
+  // Window "sky" rectangle (emissive)
+  const skyPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.8, 3.5),
+    new THREE.MeshBasicMaterial({ color: 0xaaddff })
+  );
+  skyPlane.rotation.y = Math.PI / 2;
+  skyPlane.position.set(X + 9.1, 4, 2.5);
+  scene.add(skyPlane);
+
+  // Window bounce light
+  const wL = new THREE.SpotLight(0xaaddff, 2.0, 14, Math.PI/5, 0.6);
+  wL.position.set(X + 8, 4, 2.5);
+  wL.target.position.set(X, 2, 0);
+  scene.add(wL); scene.add(wL.target);
+
+  // Boulder
+  const boulderMat = new THREE.MeshStandardMaterial({ color: 0xaa9080, roughness: 1.0 });
+  const boulder = new THREE.Mesh(new THREE.SphereGeometry(0.65, 10, 8), boulderMat);
+  boulder.position.set(X + 3.6, 0.57, 0.6);
+  boulder.scale.set(1.15, 0.88, 1.06);
+  boulder.castShadow = true;
+  scene.add(boulder);
+
+  // Floating pearl
+  const pearlMesh = new THREE.Mesh(new THREE.SphereGeometry(0.42, 32, 32), M.pearl);
+  pearlMesh.position.set(X + 1.8, 2.2, -0.8);
+  pearlMesh.castShadow = true;
+  pearlMesh.userData.anim = 'pearl';
+  scene.add(pearlMesh);
+}
+
+// ════════════════════════════════════════════
+//  ROOM 1  –  PROJECTS  (White Colonnade)
+// ════════════════════════════════════════════
+{
+  const X = 30;
+
+  // Marble floor
+  plane(24, 24, M.marble, X, 0.01, 0);
+
+  // Walls & ceiling
+  box(24, 12, 0.5, M.white, X,     6, -10, 0, 0, 0, false); // back
+  box( 0.4, 12, 24, M.white, X-10, 6,   0, 0, 0, 0, false); // left
+  box( 0.4, 12, 24, M.white, X+10, 6,   0, 0, 0, 0, false); // right
+  box(24, 0.4, 24, M.white, X, 10.2, 0, 0, 0, 0, false);    // ceiling
+
+  // Columns + beams
+  const colZ = [-7, -3, 1, 5];
+  for (const z of colZ) {
+    cyl(0.32, 0.38, 8.0, 20, M.white, X - 5, 4,    z);
+    cyl(0.32, 0.38, 8.0, 20, M.white, X + 5, 4,    z);
+    box(0.9, 0.28, 0.9, M.white, X-5, 8.14, z);  // capital
+    box(0.9, 0.28, 0.9, M.white, X+5, 8.14, z);
+    box(0.9, 0.2,  0.9, M.white, X-5, 0.10, z);  // base
+    box(0.9, 0.2,  0.9, M.white, X+5, 0.10, z);
+    box(12, 0.35, 0.55, M.white, X, 8.28, z, 0, 0, 0, false); // beam
+  }
+
+  // Arcade arches between columns (side aisles)
+  const arcadeZ = [-5, -1, 3];
+  for (const z of arcadeZ) {
+    const makeArcade = (side) => {
+      const t = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.17, 10, 24, Math.PI), M.white);
+      t.position.set(X + side * 5, 1.7, z);
+      t.rotation.set(0, Math.PI / 2, Math.PI);
+      t.castShadow = true;
+      scene.add(t);
+    };
+    makeArcade(-1);
+    makeArcade(+1);
+  }
+
+  // Large arch in back wall
+  arch(M.white, X, 0, -10, 2.5);
+
+  // Skylight
+  const topL = new THREE.SpotLight(0xffffff, 5, 22, Math.PI/9, 0.6);
+  topL.position.set(X, 18, 0);
+  topL.target.position.set(X, 0, 0);
+  scene.add(topL); scene.add(topL.target);
+
+  // Floating octahedron
+  const octa = new THREE.Mesh(new THREE.OctahedronGeometry(0.52, 0), M.gold);
+  octa.position.set(X, 3.5, -1.5);
+  octa.castShadow = true;
+  octa.userData.anim = 'octa';
+  scene.add(octa);
+}
+
+// ════════════════════════════════════════════
+//  ROOM 2  –  CONTACT  (Minimal Pink)
+// ════════════════════════════════════════════
+{
+  const X = 60;
+
+  // Reflective floor
+  plane(22, 22, M.pFloor, X, 0.01, 0);
+
+  // Walls & ceiling
+  box(22, 12, 0.5, M.pink, X,     6, -9, 0, 0, 0, false);
+  box( 0.5, 12, 22, M.pink, X-9,  6,  0, 0, 0, 0, false);
+  box( 0.5, 12, 22, M.pink, X+9,  6,  0, 0, 0, 0, false);
+  box(22, 0.4, 22, M.pink, X, 10.2, 0, 0, 0, 0, false);
+
+  // Curtain slats on back wall
+  const slat = new THREE.MeshStandardMaterial({ color: 0xd4a8a4, roughness: 0.95 });
+  for (let i = 0; i < 9; i++) {
+    box(0.12, 9, 0.12, slat, X - 7 + i * 1.2, 5, -8.7, 0, 0, 0, false);
+  }
+
+  // Platform
+  box(5, 0.18, 4, new THREE.MeshStandardMaterial({ color: 0xeee0dc, roughness: 0.32, metalness: 0.1 }), X, 0.09, 0.6);
+
+  // Chair (velvet)
+  const sx = X + 1.2, sz = 0.8;
+  box(0.95, 0.1, 0.88, M.velvet, sx, 0.78, sz);              // seat
+  box(0.95, 0.72, 0.1, M.velvet, sx, 1.17, sz - 0.44);       // back
+  cyl(0.035, 0.035, 0.76, 8, M.metal, sx - 0.38, 0.38, sz - 0.36); // legs
+  cyl(0.035, 0.035, 0.76, 8, M.metal, sx + 0.38, 0.38, sz - 0.36);
+  cyl(0.035, 0.035, 0.76, 8, M.metal, sx - 0.38, 0.38, sz + 0.36);
+  cyl(0.035, 0.035, 0.76, 8, M.metal, sx + 0.38, 0.38, sz + 0.36);
+
+  // Glass side table
+  const tx = X - 0.5, tz = 0.9;
+  box(0.58, 0.04, 0.58, M.glass, tx, 0.72, tz);
+  cyl(0.03, 0.03, 0.70, 8, M.metal, tx, 0.35, tz);
+
+  // Deco sphere on table
+  const deco = new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 24), M.gold);
+  deco.position.set(tx, 0.77, tz);
+  deco.castShadow = true;
+  deco.userData.anim = 'deco';
+  scene.add(deco);
+
+  // Warm light
+  const pL = new THREE.PointLight(0xffbbaa, 2.8, 14, 2);
+  pL.position.set(X, 7, 3);
+  scene.add(pL);
+
+  const sL = new THREE.PointLight(0xffddcc, 1.6, 7, 2);
+  sL.position.set(X - 2, 4, -8.5);
+  scene.add(sL);
+}
+
+// ════════════════════════════════════════════
+//  CORRIDORS (so the camera flies through geometry)
+// ════════════════════════════════════════════
+// Corridor 0 → 1  (x ≈ 9–21)
+{
+  const C = new THREE.MeshStandardMaterial({ color: 0xbea898, roughness: 0.9 });
+  const F = new THREE.MeshStandardMaterial({ color: 0xb09888, roughness: 0.42, metalness: 0.1 });
+  plane(14, 22, F, 15, 0.01, 0);
+  box(0.4, 8, 22, C,  9, 4, 0, 0, 0, 0, false);
+  box(0.4, 8, 22, C, 21, 4, 0, 0, 0, 0, false);
+  box(14, 0.4, 22, new THREE.MeshStandardMaterial({ color: 0xb0948a, roughness: 0.95 }), 15, 8.2, 0, 0, 0, 0, false);
+}
+
+// Corridor 1 → 2  (x ≈ 40–50)
+{
+  const C = new THREE.MeshStandardMaterial({ color: 0xd2c6c2, roughness: 0.88 });
+  const F = new THREE.MeshStandardMaterial({ color: 0xc8b8b4, roughness: 0.32, metalness: 0.15 });
+  plane(12, 22, F, 45, 0.01, 0);
+  box(0.4, 8, 22, C, 40, 4, 0, 0, 0, 0, false);
+  box(0.4, 8, 22, C, 50, 4, 0, 0, 0, 0, false);
+  box(12, 0.4, 22, new THREE.MeshStandardMaterial({ color: 0xc2b4b0, roughness: 0.9 }), 45, 8.2, 0, 0, 0, 0, false);
+}
+
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+let current = 0;
+let busy    = false;
+const mouse = { x: 0, y: 0, tx: 0, ty: 0 }; // parallax
+
+// Show first slide
+gsap.set('#slide-0', { opacity: 1, y: 0 });
+
+// ════════════════════════════════════════════
+//  NAVIGATE
+// ════════════════════════════════════════════
+window.goTo = function(index) {
+  if (busy || index === current) return;
+  busy = true;
+
+  const prev = current;
+  current = index;
+
+  // UI markers
+  document.querySelectorAll('.nav-btn').forEach((el, i) => el.classList.toggle('is-active', i === index));
+  document.querySelectorAll('.dot')    .forEach((el, i) => el.classList.toggle('is-active', i === index));
+
+  const $prev = document.getElementById(`slide-${prev}`);
+  const $next = document.getElementById(`slide-${index}`);
+  gsap.set($next, { opacity: 0, y: 30 });
+
+  // Fog lerp proxy
+  const fogFrom = new THREE.Color(ROOMS[prev].fog);
+  const fogTo   = new THREE.Color(ROOMS[index].fog);
+  const fp = { t: 0 };
+
+  const tl = gsap.timeline({ onComplete: () => { busy = false; } });
+
+  // 1. fade out old slide
+  tl.to($prev, { opacity: 0, y: -22, duration: 0.45, ease: 'power2.in' }, 0);
+
+  // 2. camera position
+  tl.to(camera.position, {
+    x: ROOMS[index].pos.x,
+    y: ROOMS[index].pos.y,
+    z: ROOMS[index].pos.z,
+    duration: 2.3,
+    ease: 'power3.inOut',
+  }, 0);
+
+  // 3. lookAt target
+  tl.to(lookTarget, {
+    x: ROOMS[index].look.x,
+    y: ROOMS[index].look.y,
+    z: ROOMS[index].look.z,
+    duration: 2.3,
+    ease: 'power3.inOut',
+  }, 0);
+
+  // 4. fog + background colour
+  tl.to(fp, {
+    t: 1, duration: 2.3, ease: 'power2.inOut',
+    onUpdate() {
+      const c = fogFrom.clone().lerp(fogTo, fp.t);
+      scene.fog.color.copy(c);
+      scene.background.copy(c);
+    },
+  }, 0);
+
+  // 5. fade in new slide
+  tl.to($next, { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out' }, 1.75);
+};
+
+// Keyboard
+window.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') goTo(Math.min(current + 1, ROOMS.length - 1));
+  if (e.key === 'ArrowLeft')  goTo(Math.max(current - 1, 0));
+});
+
+// Mouse parallax
+window.addEventListener('mousemove', e => {
+  mouse.tx = (e.clientX / innerWidth  - 0.5);
+  mouse.ty = (e.clientY / innerHeight - 0.5);
+});
+
+// ════════════════════════════════════════════
+//  ANIMATION LOOP
+// ════════════════════════════════════════════
+const clock = new THREE.Clock();
+
+function tick() {
+  requestAnimationFrame(tick);
+  const t = clock.getElapsedTime();
+
+  // Water uniforms
+  for (const u of waterUniforms) u.value = t;
+
+  // Floating objects
+  scene.traverse(obj => {
+    switch (obj.userData.anim) {
+      case 'pearl':
+        obj.position.y = 2.2 + Math.sin(t * 0.85) * 0.18;
+        obj.rotation.y = t * 0.38;
+        break;
+      case 'octa':
+        obj.position.y = 3.5 + Math.sin(t * 0.7 + 1.2) * 0.22;
+        obj.rotation.set(t * 0.3, t * 0.5, 0);
+        break;
+      case 'deco':
+        obj.position.y = 0.77 + Math.sin(t * 1.1 + 2) * 0.06;
+        break;
+    }
+  });
+
+  // Mouse parallax (only while idle)
+  if (!busy) {
+    mouse.x += (mouse.tx - mouse.x) * 0.045;
+    mouse.y += (mouse.ty - mouse.y) * 0.045;
+    const base = ROOMS[current];
+    camera.position.x = base.pos.x + mouse.x * 0.65;
+    camera.position.y = base.pos.y + Math.sin(t * 0.38) * 0.04 - mouse.y * 0.32;
+  }
+
+  camera.lookAt(lookTarget);
+  renderer.render(scene, camera);
+}
+
+tick();
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

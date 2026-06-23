@@ -3,6 +3,9 @@ from . import views
 
 urlpatterns = [
     path('', views.personal_links, name='personal_links'),
+    path('projects/', views.personal_links, name='projects'),
+    path('about/', views.personal_links, name='about'),
+    path('morph-demo/', views.morph_demo, name='morph_demo'),
     path('proxy/catalog/', views.proxy_catalog, name='proxy_catalog'),
     re_path(r'^proxy/catalog/(?P<path>.+)$', views.proxy_catalog),
     path('proxy/queuer/', views.proxy_queuer, name='proxy_queuer'),

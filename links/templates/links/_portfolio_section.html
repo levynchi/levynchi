@@ -1,0 +1,39 @@
+{% load static %}
+{% with preview_id_prefix=preview_id_prefix|default:'' %}
+<section class="portfolio-section" id="{{ section_id }}" aria-labelledby="{{ heading_id }}">
+  <h2 id="{{ heading_id }}" class="portfolio-section__title">{{ section_title }}</h2>
+  <div class="links-list">
+    {% for project in projects %}
+    {% if project.preview %}
+    <div class="link-card-wrapper">
+      <a href="{{ project.url }}" class="link-card link-card--dark link-card--preview js-preview-toggle" data-preview-id="{{ preview_id_prefix }}{{ project.preview_id }}">
+        <div class="link-icon link-icon--{{ project.icon }}">
+          <img src="{% static project.icon_img %}" alt="{{ project.name }}" />
+        </div>
+        <div class="link-text">
+          <span class="link-tag">{{ project.tag }}</span>
+          <span class="link-name">{{ project.name }}</span>
+          <span class="link-desc">{{ project.description }}</span>
+        </div>
+      </a>
+      <div class="link-preview" id="{{ preview_id_prefix }}{{ project.preview_id }}">
+        <iframe data-src="{% url project.preview %}" title="{{ project.name }}"
+                sandbox="allow-scripts allow-forms allow-popups allow-same-origin"></iframe>
+      </div>
+    </div>
+    {% else %}
+    <a href="{{ project.url }}" class="link-card">
+      <div class="link-icon link-icon--{{ project.icon }}">
+        <img src="{% static project.icon_img %}" alt="{{ project.name }}" />
+      </div>
+      <div class="link-text">
+        <span class="link-tag">{{ project.tag }}</span>
+        <span class="link-name">{{ project.name }}</span>
+        <span class="link-desc">{{ project.description }}</span>
+      </div>
+    </a>
+    {% endif %}
+    {% endfor %}
+  </div>
+</section>
+{% endwith %}
