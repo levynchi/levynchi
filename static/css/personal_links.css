@@ -417,7 +417,8 @@ body {
   font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  text-align: right;
+  text-align: center;
+  padding-top: 28px;
   margin-bottom: 16px;
   color: var(--text);
 }
